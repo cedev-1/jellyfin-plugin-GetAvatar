@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Avatar</title>
+    <style>
+        .avatar-page-container {
+            max-width: 800px;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1em;
+            margin-top: 1.5em;
+        }
+
+        @media (max-width: 600px) {
+            .avatar-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .avatar-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 3px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .avatar-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(82, 181, 75, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .avatar-option.selected {
+            border-color: #52B54B;
+            background: rgba(82, 181, 75, 0.2);
+        }
+
+        .avatar-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 100%;
+        }
+
+        .avatar-option img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-name {
+            padding: 0.75em;
+            font-size: 0.85em;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0.8;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3em 1em;
+            opacity: 0.6;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 0.5em;
+        }
+
+        .button-container {
+            margin-top: 1.5em;
+            padding-top: 1.5em;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div data-role="page" class="page type-interior userProfileSettingsPage" data-require="emby-button">
+        <div data-role="content">
+            <div class="content-primary avatar-page-container">
+                <div class="verticalSection">
+                    <h2 class="sectionTitle">Choose Your Avatar</h2>
+                    <p style="opacity:0.7;">Select an avatar from the gallery below.</p>
+                </div>
+
+                <div id="avatarContainer">
+                    <div class="empty-state">
+                        <p>Loading avatars...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const view = document.currentScript.ownerDocument;
+        const avatarContainer = view.querySelector('#avatarContainer');
+        let selectedAvatarId = null;
+
+        function loadAvatars() {
+            fetch(ApiClient.getUrl('/GetAvatar/Avatars'), {
+                headers: { 'X-Emby-Token': ApiClient.accessToken() }
+            })
+            .then(response => response.json())
+            .then(avatars => renderAvatars(avatars))
+            .catch(error => {
+                console.error('Failed to load avatars:', error);
+                avatarContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p style="color:#e57373;">Failed to load avatars.</p>
+                    </div>
+                `;
+            });
+        }
+
+        function renderAvatars(avatars) {
+            if (!avatars || avatars.length === 0) {
+                avatarContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No avatars available yet.</p>
+                        <p style="font-size:0.9em;">Contact your administrator to add avatars.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="avatar-grid">';
+
+            avatars.forEach(avatar => {
+                const id = avatar.Id || avatar.id;
+                const name = avatar.Name || avatar.name;
+                const url = avatar.Url || avatar.url;
+                html += `
+                    <div class="avatar-option" data-avatar-id="${id}">
+                        <div class="avatar-image-wrapper">
+                            <img src="${url}" alt="${name}" loading="lazy" />
+                        </div>
+                        <div class="avatar-name" title="${name}">${name}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            html += `
+                <div class="button-container">
+                    <button id="setAvatarButton" is="emby-button" type="button" class="raised button-submit" disabled>
+                        <span>Set as My Avatar</span>
+                    </button>
+                </div>
+            `;
+
+            avatarContainer.innerHTML = html;
+
+            const options = avatarContainer.querySelectorAll('.avatar-option');
+            options.forEach(opt => {
+                opt.addEventListener('click', function() {
+                    options.forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedAvatarId = this.dataset.avatarId;
+                    view.querySelector('#setAvatarButton').disabled = false;
+                });
+            });
+
+            view.querySelector('#setAvatarButton').addEventListener('click', setAvatar);
+        }
+
+        function setAvatar() {
+            if (!selectedAvatarId) return;
+
+            Dashboard.showLoadingMsg();
+
+            fetch(ApiClient.getUrl('/GetAvatar/SetAvatar'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Emby-Token': ApiClient.accessToken()
+                },
+                body: JSON.stringify({ avatarId: selectedAvatarId })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed');
+                return response.json();
+            })
+            .then(() => {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert({ message: 'Avatar updated!', title: 'Success' });
+
+                const t = Date.now();
+                document.querySelectorAll('img').forEach(img => {
+                    if (img.src.includes('/Users/') && img.src.includes('/Images/')) {
+                        img.src = img.src.split('?')[0] + '?t=' + t;
+                    }
+                });
+
+                setTimeout(() => {
+                    const url = new URL(location.href);
+                    url.searchParams.set('_refresh', t);
+                    location.href = url.toString();
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Failed to set avatar:', error);
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert({ message: 'Failed to set avatar.', title: 'Error' });
+            });
+        }
+
+        loadAvatars();
+    </script>
+</body>
+
+</html>

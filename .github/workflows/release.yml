@@ -1,0 +1,79 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Get Version from Tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Update csproj Version
+        run: |
+          sed -i "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${{ env.VERSION }}<\/AssemblyVersion>/" Jellyfin.Plugin.GetAvatar/Jellyfin.Plugin.GetAvatar.csproj
+          sed -i "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${{ env.VERSION }}<\/FileVersion>/" Jellyfin.Plugin.GetAvatar/Jellyfin.Plugin.GetAvatar.csproj
+
+      - name: Build
+        run: dotnet build Jellyfin.Plugin.GetAvatar/Jellyfin.Plugin.GetAvatar.csproj --configuration Release
+
+      - name: Zip Artifact
+        run: |
+          cd Jellyfin.Plugin.GetAvatar/bin/Release/net9.0
+          zip -r Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip Jellyfin.Plugin.GetAvatar.dll
+          mv Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip ../../../../
+
+      - name: Calculate MD5
+        id: calc_md5
+        run: |
+          MD5=$(md5sum Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip | awk '{print $1}')
+          echo "MD5=$MD5" >> $GITHUB_ENV
+
+      - name: Update manifest.json
+        run: |
+          # Create a JSON object for the new version
+          cat <<EOF > new_version.json
+          {
+            "checksum": "${{ env.MD5 }}",
+            "version": "${{ env.VERSION }}",
+            "targetAbi": "10.11.5",
+            "sourceUrl": "https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "changelog": "- New release v${{ env.VERSION }}"
+          }
+          EOF
+
+          # Use jq to prepend the new version to the versions array
+          jq '.[0].versions = ([input] + .[0].versions)' manifest.json new_version.json > manifest.tmp && mv manifest.tmp manifest.json
+          rm new_version.json
+
+      - name: Commit manifest.json
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m "Update manifest for v${{ env.VERSION }}"
+          git push origin HEAD:main
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip
+          name: v${{ env.VERSION }}
+          draft: false
+          prerelease: false

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GetAvatar Configuration</title>
+  </head>
+
+  <body>
+    <div
+      id="GetAvatarConfigPage"
+      data-role="page"
+      class="page type-interior pluginConfigurationPage"
+      data-require="emby-input,emby-button"
+      data-controller="__plugin/GetAvatarConfig"
+    >
+      <div data-role="content">
+        <div class="content-primary">
+
+          <div class="verticalSection">
+            <h2 class="sectionTitle">GetAvatar</h2>
+          </div>
+
+          <div class="upload-box">
+            <input
+              type="file"
+              id="avatarFileInput"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+            />
+            <label for="avatarFileInput" class="upload-label">
+              <span class="material-icons" style="font-size: 1.1em"
+                >add_photo_alternate</span
+              >
+              Add Avatar
+            </label>
+            <span class="upload-info">JPG, PNG, GIF, WebP • Max 5MB</span>
+            <span id="selectedFile" class="selected-file-name"
+              ><span id="fileName"></span
+            ></span>
+            <button
+              id="uploadButton"
+              is="emby-button"
+              type="button"
+              class="raised button-submit"
+            >
+              Upload
+            </button>
+          </div>
+
+          <div class="verticalSection">
+            <div class="avatar-list-header">
+              <h3>Avatars</h3>
+              <span id="avatarCount" class="avatar-count"></span>
+            </div>
+            <div id="avatarList">
+              <div class="loading-state">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
