@@ -32,6 +32,7 @@
     <EmbeddedResource Include="Configuration\Web\userAvatarPage.html" />
     <None Remove="Configuration\Web\clientScript.js" />
     <EmbeddedResource Include="Configuration\Web\clientScript.js" />
+    <EmbeddedResource Include="assets\banner.png" />
   </ItemGroup>
 
   <ItemGroup>

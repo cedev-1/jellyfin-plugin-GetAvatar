@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.RegularExpressions;
 using Jellyfin.Plugin.GetAvatar.Configuration;
 using MediaBrowser.Common.Configuration;
