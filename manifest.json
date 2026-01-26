@@ -1,21 +1,29 @@
 [
-    {
-        "category": "User Management",
-        "guid": "88accc81-d913-44b3-b1d3-2abfa457dd2d",
-        "name": "GetAvatar",
-        "owner": "cedev-1",
-        "overview": "Allows users to choose avatars from a curated collection.",
-        "description": "A Jellyfin plugin that allows users to choose an avatar from a collection of images.",
-        "imageUrl": "https://raw.githubusercontent.com/cedev-1/jellyfin-plugin-GetAvatar/blob/main/assets/banner.png",
-        "versions": [
-            {
-                "checksum": "0000000000000000000000000000000000",
-                "version": "1.0.0.0",
-                "targetAbi": "10.11.5",
-                "sourceUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/releases/download/v1.0.0.0/Jellyfin.Plugin.GetAvatar.zip",
-                "timestamp": "2026-01-22T00:00:00Z",
-                "changelog": "- Initial release\n- Upload and manage avatar collection\n- Users can select from available avatars"
-            }
-        ]
-    }
+  {
+    "category": "User Management",
+    "guid": "88accc81-d913-44b3-b1d3-2abfa457dd2d",
+    "name": "GetAvatar",
+    "owner": "cedev-1",
+    "overview": "Allows users to choose avatars from a curated collection.",
+    "description": "A Jellyfin plugin that allows users to choose an avatar from a collection of images.",
+    "imageUrl": "https://raw.githubusercontent.com/cedev-1/jellyfin-plugin-GetAvatar/blob/main/assets/banner.png",
+    "versions": [
+      {
+        "checksum": "f7e76bcd3020aa19e1f1136c716f5c07",
+        "version": "1.0.0",
+        "targetAbi": "10.11.5",
+        "sourceUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/releases/download/v1.0.0/Jellyfin.Plugin.GetAvatar-v1.0.0.zip",
+        "timestamp": "2026-01-26T22:39:57Z",
+        "changelog": "- New release v1.0.0"
+      },
+      {
+        "checksum": "0000000000000000000000000000000000",
+        "version": "1.0.0.0",
+        "targetAbi": "10.11.5",
+        "sourceUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/releases/download/v1.0.0.0/Jellyfin.Plugin.GetAvatar.zip",
+        "timestamp": "2026-01-22T00:00:00Z",
+        "changelog": "- Initial release\n- Upload and manage avatar collection\n- Users can select from available avatars"
+      }
+    ]
+  }
 ]
