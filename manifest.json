@@ -9,6 +9,14 @@
     "imageUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/raw/refs/heads/main/assets/banner.png",
     "versions": [
       {
+        "checksum": "0e4d52217596643ff4b34b1ce040dfc7",
+        "version": "1.0.0",
+        "targetAbi": "10.11.5",
+        "sourceUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/releases/download/v1.0.0/Jellyfin.Plugin.GetAvatar-v1.0.0.zip",
+        "timestamp": "2026-01-26T23:01:29Z",
+        "changelog": "- New release v1.0.0"
+      },
+      {
         "checksum": "f7e76bcd3020aa19e1f1136c716f5c07",
         "version": "1.0.0",
         "targetAbi": "10.11.5",
