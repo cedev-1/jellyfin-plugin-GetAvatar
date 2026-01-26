@@ -6,7 +6,7 @@
     "owner": "cedev-1",
     "overview": "Allows users to choose avatars from a curated collection.",
     "description": "A Jellyfin plugin that allows users to choose an avatar from a collection of images.",
-    "imageUrl": "https://raw.githubusercontent.com/cedev-1/jellyfin-plugin-GetAvatar/blob/main/assets/banner.png",
+    "imageUrl": "https://github.com/cedev-1/jellyfin-plugin-GetAvatar/raw/refs/heads/main/assets/banner.png",
     "versions": [
       {
         "checksum": "f7e76bcd3020aa19e1f1136c716f5c07",
