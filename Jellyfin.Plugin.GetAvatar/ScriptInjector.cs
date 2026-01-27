@@ -61,42 +61,52 @@ public class ScriptInjector : IHostedService, IDisposable
     {
         var indexPath = Path.Combine(_appPaths.WebPath, "index.html");
 
+        _logger.LogInformation("Attempting to inject GetAvatar script. WebPath: {WebPath}, IndexPath: {IndexPath}", _appPaths.WebPath, indexPath);
+
         if (!File.Exists(indexPath))
         {
-            _logger.LogWarning("index.html not found at {Path}", indexPath);
+            _logger.LogWarning("index.html not found at {Path}. Cannot inject script. Consider using Custom JavaScript plugin instead.", indexPath);
             return;
         }
 
-        var content = File.ReadAllText(indexPath);
-
-        // Build injection block
-        var injectionBlock = BuildInjectionBlock();
-
-        // Check if already injected with same content
-        if (content.Contains(injectionBlock))
+        try
         {
-            _logger.LogDebug("GetAvatar script already injected");
-            return;
+            var content = File.ReadAllText(indexPath);
+            _logger.LogDebug("Successfully read index.html ({Length} bytes)", content.Length);
+
+            var injectionBlock = BuildInjectionBlock();
+
+            if (content.Contains(injectionBlock))
+            {
+                _logger.LogInformation("GetAvatar script already injected with current version");
+                return;
+            }
+
+            var regex = new Regex($"{Regex.Escape(StartComment)}[\\s\\S]*?{Regex.Escape(EndComment)}", RegexOptions.Multiline);
+            content = regex.Replace(content, string.Empty);
+
+            const string closingBodyTag = "</body>";
+            var bodyIndex = content.LastIndexOf(closingBodyTag, StringComparison.OrdinalIgnoreCase);
+
+            if (bodyIndex == -1)
+            {
+                _logger.LogWarning("Could not find </body> tag in index.html");
+                return;
+            }
+
+            content = content.Insert(bodyIndex, injectionBlock + "\n");
+
+            File.WriteAllText(indexPath, content);
+            _logger.LogInformation("GetAvatar script injected successfully into {Path}", indexPath);
         }
-
-        // Remove any existing injection (for upgrades)
-        var regex = new Regex($"{Regex.Escape(StartComment)}[\\s\\S]*?{Regex.Escape(EndComment)}", RegexOptions.Multiline);
-        content = regex.Replace(content, string.Empty);
-
-        // Find closing body tag and insert before it
-        const string closingBodyTag = "</body>";
-        var bodyIndex = content.LastIndexOf(closingBodyTag, StringComparison.OrdinalIgnoreCase);
-
-        if (bodyIndex == -1)
+        catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning("Could not find </body> tag in index.html");
-            return;
+            _logger.LogError(ex, "Permission denied when trying to modify index.html at {Path}. Ensure the Jellyfin process has write access to the web directory.", indexPath);
         }
-
-        content = content.Insert(bodyIndex, injectionBlock + "\n");
-
-        File.WriteAllText(indexPath, content);
-        _logger.LogInformation("GetAvatar script injected successfully");
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while injecting script into index.html");
+        }
     }
 
     private static string BuildInjectionBlock()
