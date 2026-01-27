@@ -16,14 +16,14 @@
         modal.id = CONFIG.modalId;
         modal.innerHTML = `
             <div class="dialogContainer" style="display:none;">
-                <div class="focuscontainer dialog dialog-fixedSize dialog-medium-tall" style="max-width:900px;">
+                <div class="focuscontainer dialog dialog-fixedSize dialog-medium-tall" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">
                     <div class="formDialogHeader">
                         <button is="paper-icon-button-light" class="btnCancel autoSize" title="Close">
                             <span class="material-icons close"></span>
                         </button>
                         <h3 class="formDialogHeaderTitle">Choose Your Avatar</h3>
                     </div>
-                    <div class="formDialogContent scrollY" style="padding:2em;">
+                    <div class="formDialogContent scrollY" style="padding:2em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
                         <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;"></div>
                         <div style="margin-top:2em;display:flex;justify-content:flex-end;gap:1em;">
                             <button is="emby-button" id="cancelAvatarBtn" class="raised button-cancel">Cancel</button>
@@ -53,6 +53,12 @@
             container.style.background = 'rgba(0,0,0,0.7)';
             container.style.alignItems = 'center';
             container.style.justifyContent = 'center';
+            
+            // Bloquer le scroll du body sur mobile
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            
             loadAvatars();
         }
     }
@@ -62,6 +68,11 @@
         if (container) {
             container.style.display = 'none';
             selectedAvatarId = null;
+            
+            // FIX phone scroll
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
         }
     }
 
