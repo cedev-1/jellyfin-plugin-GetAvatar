@@ -32,6 +32,8 @@ namespace Jellyfin.Plugin.GetAvatar
             _logger = logger;
             _appPaths = applicationPaths;
             Instance = this;
+            
+            _logger.LogInformation("GetAvatar Plugin initialized. Instance set.");
         }
 
         /// <summary>

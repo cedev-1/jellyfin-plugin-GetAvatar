@@ -1,4 +1,3 @@
-using Jellyfin.Plugin.GetAvatar.Controllers;
 using Jellyfin.Plugin.GetAvatar.Services;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -15,7 +14,6 @@ namespace Jellyfin.Plugin.GetAvatar
         public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
         {
             serviceCollection.AddSingleton<AvatarService>();
-            serviceCollection.AddSingleton<AvatarController>();
             serviceCollection.AddHostedService<ScriptInjector>();
         }
     }

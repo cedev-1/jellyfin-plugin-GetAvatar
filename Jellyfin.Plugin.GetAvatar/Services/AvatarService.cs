@@ -40,22 +40,43 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             _providerManager = providerManager;
             _appPaths = appPaths;
             _logger = logger;
+            
+            _logger.LogInformation("AvatarService constructor called. Plugin.Instance is {Status}", 
+                Plugin.Instance == null ? "NULL" : "initialized");
 
-            // Store avatars in plugin data directory
+            // Store avatars in plugin data directory using Jellyfin's proper paths
+            // This path is automatically adapted to the environment (Docker, Windows, Linux, etc.)
             var pluginDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "jellyfin",
-                "plugins",
+                _appPaths.PluginConfigurationsPath,
                 "GetAvatar",
                 "avatars");
 
             _avatarDirectory = pluginDataPath;
+            
+            _logger.LogInformation("Avatar directory path: {Path}", _avatarDirectory);
 
             // Create directory if it doesn't exist
-            if (!Directory.Exists(_avatarDirectory))
+            try
             {
-                Directory.CreateDirectory(_avatarDirectory);
-                _logger.LogInformation("Created avatar directory: {Path}", _avatarDirectory);
+                if (!Directory.Exists(_avatarDirectory))
+                {
+                    Directory.CreateDirectory(_avatarDirectory);
+                    _logger.LogInformation("Successfully created avatar directory: {Path}", _avatarDirectory);
+                }
+                else
+                {
+                    _logger.LogInformation("Avatar directory already exists: {Path}", _avatarDirectory);
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Permission denied when creating avatar directory at {Path}. Please check directory permissions.", _avatarDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create avatar directory at {Path}", _avatarDirectory);
+                throw;
             }
         }
 
@@ -70,7 +91,21 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <returns>List of available avatars.</returns>
         public List<AvatarInfo> GetAvailableAvatars()
         {
-            return Plugin.Config.AvailableAvatars ?? new List<AvatarInfo>();
+            if (Plugin.Instance == null)
+            {
+                _logger.LogError("Plugin instance is null in GetAvailableAvatars");
+                return new List<AvatarInfo>();
+            }
+            
+            var config = Plugin.Instance.Configuration;
+            if (config == null)
+            {
+                _logger.LogError("Plugin configuration is null");
+                return new List<AvatarInfo>();
+            }
+            
+            _logger.LogInformation("Returning {Count} avatars from configuration", config.AvailableAvatars?.Count ?? 0);
+            return config.AvailableAvatars ?? new List<AvatarInfo>();
         }
 
         /// <summary>
@@ -99,10 +134,15 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 };
 
                 // Add to configuration
+                if (Plugin.Instance == null)
+                {
+                    _logger.LogError("Plugin instance is null, cannot save avatar to configuration");
+                    throw new InvalidOperationException("Plugin not initialized");
+                }
                 var config = Plugin.Config;
                 config.AvailableAvatars ??= new List<AvatarInfo>();
                 config.AvailableAvatars.Add(avatarInfo);
-                Plugin.Instance?.SaveConfiguration();
+                Plugin.Instance.SaveConfiguration();
 
                 _logger.LogInformation("Saved avatar: {Name} ({Id})", avatarInfo.Name, avatarInfo.Id);
 
@@ -124,6 +164,11 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         {
             try
             {
+                if (Plugin.Instance == null)
+                {
+                    _logger.LogError("Plugin instance is null");
+                    return false;
+                }
                 var config = Plugin.Config;
                 var avatar = config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
 
@@ -140,7 +185,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 }
 
                 config.AvailableAvatars?.Remove(avatar);
-                Plugin.Instance?.SaveConfiguration();
+                Plugin.Instance.SaveConfiguration();
 
                 _logger.LogInformation("Deleted avatar: {Name} ({Id})", avatar.Name, avatarId);
                 return true;
@@ -159,6 +204,11 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <returns>The file path, or null if not found.</returns>
         public string? GetAvatarPath(string avatarId)
         {
+            if (Plugin.Instance == null)
+            {
+                _logger.LogError("Plugin instance is null");
+                return null;
+            }
             var avatar = Plugin.Config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
             if (avatar == null)
             {
@@ -268,6 +318,11 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             }
 
             // Store the mapping in plugin config
+            if (Plugin.Instance == null)
+            {
+                _logger.LogError("Plugin instance is null, cannot save avatar mapping");
+                throw new InvalidOperationException("Plugin not initialized");
+            }
             var config = Plugin.Config;
             config.UserAvatars ??= new List<UserAvatarMapping>();
 
@@ -285,7 +340,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 });
             }
 
-            Plugin.Instance?.SaveConfiguration();
+            Plugin.Instance.SaveConfiguration();
 
             _logger.LogInformation("Successfully set avatar {AvatarId} for user {UserName} ({UserId})", avatarId, user.Username, userId);
         }

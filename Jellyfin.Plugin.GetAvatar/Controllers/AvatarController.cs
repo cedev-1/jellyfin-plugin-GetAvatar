@@ -73,7 +73,9 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         {
             try
             {
+                _logger.LogInformation("GetAvatars endpoint called");
                 var avatars = _avatarService.GetAvailableAvatars();
+                _logger.LogInformation("Retrieved {Count} avatars", avatars.Count);
                 return Ok(avatars.Select(a => new
                 {
                     a.Id,
