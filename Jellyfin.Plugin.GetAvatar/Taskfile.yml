@@ -21,16 +21,19 @@ tasks:
     cmds:
       - dotnet build '{{.PROJECT_PATH}}/{{.PLUGIN_NAME}}' -c Debug
 
+      - sudo rm -rf "{{.JELLYFIN_CONFIG_PATH}}/plugins/{{.PLUGIN_NAME}}"*
+      - sudo rm -rf "{{.JELLYFIN_CONFIG_PATH}}/plugins/GetAvatar"*
+      
       - if [ ! -d "{{.PLUGIN_DEST_PATH}}" ]; then sudo mkdir -p "{{.PLUGIN_DEST_PATH}}"; fi
       - if [ ! -d "{{.CONFIG_DIR}}" ]; then sudo mkdir -p "{{.CONFIG_DIR}}"; fi
 
       - sudo cp -f "{{.DLL_PATH}}" "{{.PLUGIN_DEST_PATH}}/"
-      - sudo cp -f "{{.XML_PATH}}" "{{.CONFIG_DIR}}/"
+      - sudo cp -f "{{.XML_PATH}}" "{{.PLUGIN_DEST_PATH}}/"
 
       - sudo chown -R $(whoami):$(id -gn) "{{.PLUGIN_DEST_PATH}}"
       - sudo chmod 755 "{{.PLUGIN_DEST_PATH}}"
       - sudo chmod 644 "{{.PLUGIN_DEST_PATH}}/{{.PLUGIN_NAME}}.dll"
-      - sudo chmod 644 "{{.CONFIG_DIR}}/{{.PLUGIN_NAME}}.xml"
+      - sudo chmod 644 "{{.PLUGIN_DEST_PATH}}/{{.PLUGIN_NAME}}.xml"
 
       - docker restart "{{.DOCKER_CONTAINER}}"
 
