@@ -101,7 +101,7 @@ export default function (view) {
   const selectedFileDiv = view.querySelector("#selectedFile");
   const fileNameSpan = view.querySelector("#fileName");
 
-  let selectedFile = null;
+  let selectedFiles = [];
 
   function loadAvatars() {
     avatarListContainer.innerHTML =
@@ -198,64 +198,91 @@ export default function (view) {
       });
   }
 
-  function uploadAvatar() {
-    if (!selectedFile) {
+  async function uploadAvatar() {
+    if (!selectedFiles || selectedFiles.length === 0) {
       Dashboard.alert({
-        message: "Please select a file first.",
+        message: "Please select at least one file first.",
         title: "No File",
       });
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     Dashboard.showLoadingMsg();
 
-    fetch(ApiClient.getUrl("/GetAvatar/Upload"), {
-      method: "POST",
-      headers: { "X-Emby-Token": ApiClient.accessToken() },
-      body: formData,
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          return response.text().then(function (text) {
-            throw new Error(text || "Upload failed");
-          });
-        }
-        return response.json();
-      })
-      .then(function () {
-        Dashboard.hideLoadingMsg();
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
 
-        fileInput.value = "";
-        selectedFile = null;
-        selectedFileDiv.classList.remove("visible");
-        uploadButton.classList.remove("visible");
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const formData = new FormData();
+      formData.append("file", file);
 
-        loadAvatars();
-      })
-      .catch(function (error) {
-        console.error("Failed to upload avatar:", error);
-        Dashboard.hideLoadingMsg();
-        Dashboard.alert({
-          message: error.message || "Failed to upload avatar.",
-          title: "Error",
+      try {
+        const response = await fetch(ApiClient.getUrl("/GetAvatar/Upload"), {
+          method: "POST",
+          headers: { "X-Emby-Token": ApiClient.accessToken() },
+          body: formData,
         });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Upload failed");
+        }
+
+        await response.json();
+        successCount++;
+      } catch (error) {
+        console.error("Failed to upload avatar:", file.name, error);
+        failCount++;
+        errors.push(file.name + ": " + error.message);
+      }
+    }
+
+    Dashboard.hideLoadingMsg();
+
+    fileInput.value = "";
+    selectedFiles = [];
+    selectedFileDiv.classList.remove("visible");
+    uploadButton.classList.remove("visible");
+
+    loadAvatars();
+
+    if (failCount === 0) {
+      Dashboard.alert({
+        message: successCount + " avatar(s) uploaded successfully!",
+        title: "Success",
       });
+    } else if (successCount > 0) {
+      Dashboard.alert({
+        message:
+          successCount +
+          " avatar(s) uploaded, " +
+          failCount +
+          " failed.\n\n" +
+          errors.join("\n"),
+        title: "Partial Success",
+      });
+    } else {
+      Dashboard.alert({
+        message: "All uploads failed.\n\n" + errors.join("\n"),
+        title: "Error",
+      });
+    }
   }
 
   fileInput.addEventListener("change", function () {
     if (this.files && this.files.length > 0) {
-      selectedFile = this.files[0];
+      const files = Array.from(this.files);
 
-      if (selectedFile.size > 5 * 1024 * 1024) {
+      // Limiter à 10 fichiers maximum
+      if (files.length > 10) {
         Dashboard.alert({
-          message: "File exceeds 5 MB limit.",
-          title: "File Too Large",
+          message: "You can upload a maximum of 10 files at once.",
+          title: "Too Many Files",
         });
         this.value = "";
-        selectedFile = null;
+        selectedFiles = [];
         selectedFileDiv.classList.remove("visible");
         uploadButton.classList.remove("visible");
         return;
@@ -267,20 +294,53 @@ export default function (view) {
         "image/gif",
         "image/webp",
       ];
-      if (!allowedTypes.includes(selectedFile.type)) {
-        Dashboard.alert({ message: "Invalid file type.", title: "Error" });
+      const validFiles = [];
+      const errors = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        if (file.size > 5 * 1024 * 1024) {
+          errors.push(file.name + " exceeds 5 MB limit");
+          continue;
+        }
+
+        if (!allowedTypes.includes(file.type)) {
+          errors.push(file.name + " has invalid file type");
+          continue;
+        }
+
+        validFiles.push(file);
+      }
+
+      if (errors.length > 0) {
+        Dashboard.alert({
+          message:
+            "Some files were rejected:\n\n" +
+            errors.join("\n") +
+            "\n\nValid files: " +
+            validFiles.length,
+          title: "File Validation",
+        });
+      }
+
+      if (validFiles.length === 0) {
         this.value = "";
-        selectedFile = null;
+        selectedFiles = [];
         selectedFileDiv.classList.remove("visible");
         uploadButton.classList.remove("visible");
         return;
       }
 
-      fileNameSpan.textContent = selectedFile.name;
+      selectedFiles = validFiles;
+      fileNameSpan.textContent =
+        validFiles.length === 1
+          ? validFiles[0].name
+          : validFiles.length + " files selected";
       selectedFileDiv.classList.add("visible");
       uploadButton.classList.add("visible");
     } else {
-      selectedFile = null;
+      selectedFiles = [];
       selectedFileDiv.classList.remove("visible");
       uploadButton.classList.remove("visible");
     }
