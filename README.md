@@ -8,7 +8,7 @@ Jellyfin plugin that allows users to choose an avatar from a collection of image
 
 This plugin allows users to choose an avatar from a collection of images. The plugin is installed in the Jellyfin server and provides a button in the user profile to select an avatar.
 
-> NOTE
+> [!NOTE]
 > This is a beta
 
 ## Installation
