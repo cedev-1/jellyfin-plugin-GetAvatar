@@ -1,5 +1,3 @@
-using System.IO;
-using System.Text.RegularExpressions;
 using Jellyfin.Plugin.GetAvatar.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -14,11 +12,7 @@ namespace Jellyfin.Plugin.GetAvatar
     /// </summary>
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
-        private const string StartComment = "<!-- GetAvatar Plugin Start -->";
-        private const string EndComment = "<!-- GetAvatar Plugin End -->";
-
         private readonly ILogger<Plugin> _logger;
-        private readonly IApplicationPaths _appPaths;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -30,10 +24,9 @@ namespace Jellyfin.Plugin.GetAvatar
             : base(applicationPaths, xmlSerializer)
         {
             _logger = logger;
-            _appPaths = applicationPaths;
             Instance = this;
-            
-            _logger.LogInformation("GetAvatar Plugin initialized. Instance set.");
+
+            _logger.LogInformation("GetAvatar Plugin initialized");
         }
 
         /// <summary>
@@ -81,44 +74,6 @@ namespace Jellyfin.Plugin.GetAvatar
                 MenuSection = "user",
                 MenuIcon = "person"
             };
-        }
-
-        /// <inheritdoc />
-        public override void OnUninstalling()
-        {
-            RemoveInjectedScript();
-            base.OnUninstalling();
-        }
-
-        /// <summary>
-        /// Removes the injected script from index.html when plugin is uninstalled.
-        /// </summary>
-        private void RemoveInjectedScript()
-        {
-            try
-            {
-                var indexPath = Path.Combine(_appPaths.WebPath, "index.html");
-
-                if (!File.Exists(indexPath))
-                {
-                    return;
-                }
-
-                var content = File.ReadAllText(indexPath);
-
-                var regex = new Regex($"{Regex.Escape(StartComment)}[\\s\\S]*?{Regex.Escape(EndComment)}", RegexOptions.Multiline);
-                var newContent = regex.Replace(content, string.Empty);
-
-                if (newContent != content)
-                {
-                    File.WriteAllText(indexPath, newContent);
-                    _logger.LogInformation("GetAvatar script removed from index.html");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to remove GetAvatar script from index.html");
-            }
         }
     }
 }
