@@ -40,8 +40,9 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             _providerManager = providerManager;
             _appPaths = appPaths;
             _logger = logger;
-            
-            _logger.LogInformation("AvatarService constructor called. Plugin.Instance is {Status}", 
+
+            _logger.LogInformation(
+                "AvatarService constructor called. Plugin.Instance is {Status}",
                 Plugin.Instance == null ? "NULL" : "initialized");
 
             // Store avatars in plugin data directory using Jellyfin's proper paths
@@ -52,7 +53,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 "avatars");
 
             _avatarDirectory = pluginDataPath;
-            
+
             _logger.LogInformation("Avatar directory path: {Path}", _avatarDirectory);
 
             // Create directory if it doesn't exist
@@ -96,14 +97,14 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 _logger.LogError("Plugin instance is null in GetAvailableAvatars");
                 return new List<AvatarInfo>();
             }
-            
+
             var config = Plugin.Instance.Configuration;
             if (config == null)
             {
                 _logger.LogError("Plugin configuration is null");
                 return new List<AvatarInfo>();
             }
-            
+
             _logger.LogInformation("Returning {Count} avatars from configuration", config.AvailableAvatars?.Count ?? 0);
             return config.AvailableAvatars ?? new List<AvatarInfo>();
         }
@@ -139,6 +140,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                     _logger.LogError("Plugin instance is null, cannot save avatar to configuration");
                     throw new InvalidOperationException("Plugin not initialized");
                 }
+
                 var config = Plugin.Config;
                 config.AvailableAvatars ??= new List<AvatarInfo>();
                 config.AvailableAvatars.Add(avatarInfo);
@@ -169,6 +171,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                     _logger.LogError("Plugin instance is null");
                     return false;
                 }
+
                 var config = Plugin.Config;
                 var avatar = config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
 
@@ -209,6 +212,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 _logger.LogError("Plugin instance is null");
                 return null;
             }
+
             var avatar = Plugin.Config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
             if (avatar == null)
             {
@@ -323,6 +327,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 _logger.LogError("Plugin instance is null, cannot save avatar mapping");
                 throw new InvalidOperationException("Plugin not initialized");
             }
+
             var config = Plugin.Config;
             config.UserAvatars ??= new List<UserAvatarMapping>();
 
