@@ -9,7 +9,7 @@ Jellyfin plugin that allows users to choose an avatar from a collection of image
 This plugin allows users to choose an avatar from a collection of images. The plugin is installed in the Jellyfin server and provides a button in the user profile to select an avatar.
 
 > [!NOTE]
-> This is a beta
+> v1.4.0 stable version (test on jellyfin version 10.11.6)
 
 ## Installation
 
@@ -38,7 +38,7 @@ User profile page will have a new button "Choose Your Avatar".
 
 ## Disclaimer
 
-It's in beta, so it may have some bugs. If you find any bug, please open an issue.
+It may have some bugs. If you find any bug, please open an [issue](https://github.com/cedev-1/jellyfin-plugin-GetAvatar/issues).
 
 ## License
 
