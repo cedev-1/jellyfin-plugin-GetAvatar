@@ -40,6 +40,10 @@ User profile page will have a new button "Choose Your Avatar".
 
 It may have some bugs. If you find any bug, please open an [issue](https://github.com/cedev-1/jellyfin-plugin-GetAvatar/issues).
 
+# Troubleshooting
+
+It is possible that on already active sessions the button is not displayed on the profile. You can clear your browser cache.
+
 ## License
 
 MIT
