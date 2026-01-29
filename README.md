@@ -46,4 +46,4 @@ It is possible that on already active sessions the button is not displayed on th
 
 ## License
 
-MIT
+[MIT](./LICENSE)
