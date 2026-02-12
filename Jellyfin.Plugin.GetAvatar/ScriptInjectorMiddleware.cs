@@ -51,6 +51,20 @@ public class ScriptInjectorMiddleware
 
         await _next(context).ConfigureAwait(false);
 
+        if (context.Response.StatusCode is StatusCodes.Status304NotModified or StatusCodes.Status204NoContent)
+        {
+            context.Response.Body = originalBodyStream;
+            return;
+        }
+
+        if (context.Response.StatusCode < 200 || context.Response.StatusCode >= 300)
+        {
+            memoryStream.Seek(0, SeekOrigin.Begin);
+            context.Response.Body = originalBodyStream;
+            await memoryStream.CopyToAsync(originalBodyStream).ConfigureAwait(false);
+            return;
+        }
+
         memoryStream.Seek(0, SeekOrigin.Begin);
 
         var contentType = context.Response.ContentType ?? string.Empty;

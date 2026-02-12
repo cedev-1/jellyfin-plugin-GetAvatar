@@ -278,25 +278,14 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
             try
             {
-                // Delete old profile image file if exists
+                // Remember the old path before making changes
+                string? oldProfileImagePath = null;
                 if (user.ProfileImage != null && !string.IsNullOrEmpty(user.ProfileImage.Path))
                 {
-                    var oldPath = user.ProfileImage.Path;
-                    if (File.Exists(oldPath))
-                    {
-                        try
-                        {
-                            File.Delete(oldPath);
-                            _logger.LogInformation("Deleted old profile image: {Path}", oldPath);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Could not delete old profile image");
-                        }
-                    }
+                    oldProfileImagePath = user.ProfileImage.Path;
                 }
 
-                // Copy the new avatar file
+                // Copy the new avatar file first (before deleting anything)
                 File.Copy(avatarPath, profileImagePath, overwrite: true);
                 _logger.LogInformation("Copied avatar to profile path");
 
@@ -314,6 +303,22 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
                 await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
                 _logger.LogInformation("Saved user changes to database");
+
+                // Delete old profile image file after the database update succeeded
+                if (oldProfileImagePath != null
+                    && oldProfileImagePath != profileImagePath
+                    && File.Exists(oldProfileImagePath))
+                {
+                    try
+                    {
+                        File.Delete(oldProfileImagePath);
+                        _logger.LogInformation("Deleted old profile image: {Path}", oldProfileImagePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not delete old profile image (orphan file left)");
+                    }
+                }
             }
             catch (Exception ex)
             {
