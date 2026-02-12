@@ -35,7 +35,8 @@ jobs:
       - name: Zip Artifact
         run: |
           cd Jellyfin.Plugin.GetAvatar/bin/Release/net9.0
-          zip -r Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip Jellyfin.Plugin.GetAvatar.dll
+          cp ../../../../assets/banner.png .
+          zip -r Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip Jellyfin.Plugin.GetAvatar.dll banner.png
           mv Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip ../../../../
 
       - name: Calculate MD5
