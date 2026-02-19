@@ -3,6 +3,7 @@ using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Jellyfin.Plugin.GetAvatar
 {
@@ -16,6 +17,7 @@ namespace Jellyfin.Plugin.GetAvatar
         {
             serviceCollection.AddSingleton<AvatarService>();
             serviceCollection.AddSingleton<IStartupFilter, ScriptInjectorStartup>();
+            serviceCollection.AddHostedService<AvatarValidationService>();
         }
     }
 }

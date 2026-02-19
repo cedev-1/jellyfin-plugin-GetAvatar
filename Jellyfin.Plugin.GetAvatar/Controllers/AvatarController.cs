@@ -315,5 +315,140 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 return StatusCode(500, "Failed to set avatar");
             }
         }
+
+        /// <summary>
+        /// Removes the avatar from the current user (admin only).
+        /// This clears the user's profile image without deleting the avatar from the pool.
+        /// </summary>
+        /// <param name="request">The request containing the user ID.</param>
+        /// <returns>Status of operation.</returns>
+        [HttpPost("RemoveUserAvatar")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> RemoveUserAvatar([FromBody] RemoveAvatarRequest request)
+        {
+            try
+            {
+                if (!Guid.TryParse(request.UserId, out var userId))
+                {
+                    return BadRequest("Invalid user ID");
+                }
+
+                var success = await _avatarService.RemoveUserAvatarAsync(userId);
+                if (!success)
+                {
+                    return BadRequest("Failed to remove avatar from user");
+                }
+
+                return Ok(new { message = "Avatar removed from user successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to remove user avatar");
+                return StatusCode(500, "Failed to remove avatar");
+            }
+        }
+
+        /// <summary>
+        /// Validates and repairs all user avatars (admin only).
+        /// This checks if profile image files exist and re-applies avatars if missing.
+        /// </summary>
+        /// <returns>Validation results.</returns>
+        [HttpPost("ValidateAvatars")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> ValidateAvatars()
+        {
+            try
+            {
+                _logger.LogInformation("Starting avatar validation (manual trigger)");
+                var repairedCount = await _avatarService.ValidateUserAvatarsAsync();
+
+                return Ok(new
+                {
+                    message = "Avatar validation completed",
+                    repairedCount = repairedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to validate avatars");
+                return StatusCode(500, "Failed to validate avatars");
+            }
+        }
+
+        /// <summary>
+        /// Cleans up orphaned profile image files (admin only).
+        /// This removes old profile images that are no longer referenced.
+        /// </summary>
+        /// <returns>Cleanup results.</returns>
+        [HttpPost("CleanupOrphans")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult CleanupOrphanedFiles()
+        {
+            try
+            {
+                _logger.LogInformation("Starting orphaned file cleanup (manual trigger)");
+                var deletedCount = _avatarService.CleanOrphanedProfileImages();
+
+                return Ok(new
+                {
+                    message = "Orphaned file cleanup completed",
+                    deletedCount = deletedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to cleanup orphaned files");
+                return StatusCode(500, "Failed to cleanup orphaned files");
+            }
+        }
+
+        /// <summary>
+        /// Gets the status of user avatars (admin only).
+        /// </summary>
+        /// <returns>Status information for all users with avatars.</returns>
+        [HttpGet("AvatarStatus")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult GetAvatarStatus()
+        {
+            try
+            {
+                var users = _userManager.Users;
+                var userStatuses = new List<object>();
+
+                foreach (var user in users)
+                {
+                    var avatarId = _avatarService.GetUserAvatarId(user.Id);
+                    var profileImageExists = user.ProfileImage != null
+                        && !string.IsNullOrEmpty(user.ProfileImage.Path)
+                        && System.IO.File.Exists(user.ProfileImage.Path);
+
+                    userStatuses.Add(new
+                    {
+                        userId = user.Id.ToString(),
+                        username = user.Username,
+                        avatarId = avatarId,
+                        hasProfileImage = user.ProfileImage != null,
+                        profileImagePath = user.ProfileImage?.Path,
+                        profileImageExists = profileImageExists,
+                        status = avatarId != null && profileImageExists ? "ok" :
+                                 avatarId != null && !profileImageExists ? "missing_file" :
+                                 "no_avatar"
+                    });
+                }
+
+                return Ok(new
+                {
+                    totalUsers = users.Count(),
+                    usersWithAvatars = userStatuses.Count(u => (string)((dynamic)u).avatarId != null),
+                    usersWithMissingFiles = userStatuses.Count(u => (string)((dynamic)u).status == "missing_file"),
+                    users = userStatuses
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get avatar status");
+                return StatusCode(500, "Failed to get avatar status");
+            }
+        }
     }
 }
