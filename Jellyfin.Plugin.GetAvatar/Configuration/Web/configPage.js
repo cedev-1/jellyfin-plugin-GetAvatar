@@ -88,10 +88,10 @@ const getAvatarCss = `
 export default function (view) {
   const styleId = 'GetAvatarPluginStyles';
   if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = getAvatarCss;
-      document.head.appendChild(style);
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = getAvatarCss;
+    document.head.appendChild(style);
   }
 
   const avatarListContainer = view.querySelector("#avatarList");
@@ -275,7 +275,6 @@ export default function (view) {
     if (this.files && this.files.length > 0) {
       const files = Array.from(this.files);
 
-      // Limiter à 10 fichiers maximum
       if (files.length > 10) {
         Dashboard.alert({
           message: "You can upload a maximum of 10 files at once.",
@@ -291,7 +290,6 @@ export default function (view) {
       const allowedTypes = [
         "image/jpeg",
         "image/png",
-        "image/gif",
         "image/webp",
       ];
       const validFiles = [];
