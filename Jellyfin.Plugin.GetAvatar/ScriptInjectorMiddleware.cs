@@ -45,6 +45,13 @@ public class ScriptInjectorMiddleware
         context.Features.Set<IHttpsCompressionFeature>(null);
         context.Request.Headers.Remove("Accept-Encoding");
 
+        // Force Jellyfin to ignore the browser's cache for index.html 
+        // by pretending it's a fresh request every time.
+        // Otherwise, StaticFileMiddleware returns a 304 Not Modified empty body,
+        // and we fail to inject the GetAvatar script.
+        context.Request.Headers.Remove("If-None-Match");
+        context.Request.Headers.Remove("If-Modified-Since");
+
         var originalBodyStream = context.Response.Body;
         using var memoryStream = new MemoryStream();
         context.Response.Body = memoryStream;
@@ -89,7 +96,14 @@ public class ScriptInjectorMiddleware
         }
 
         var resultBytes = Encoding.UTF8.GetBytes(body);
+
         context.Response.Headers.Remove("Content-Encoding");
+        context.Response.Headers.Remove("ETag");
+        context.Response.Headers.Remove("Last-Modified");
+        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "-1";
+        
         context.Response.Body = originalBodyStream;
         context.Response.ContentLength = resultBytes.Length;
         await originalBodyStream.WriteAsync(resultBytes).ConfigureAwait(false);
