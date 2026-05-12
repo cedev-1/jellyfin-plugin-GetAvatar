@@ -46,8 +46,6 @@ It is possible that on already active sessions the button is not displayed on th
 
 possible that we need to restart after making the v1.5.3.0 update.
 
-Currently, an admin cannot use the plugin to change another user's avatar. (issue [https://github.com/cedev-1/jellyfin-plugin-GetAvatar/issues/1]) A fix should be available soon.
-
 ## License
 
 [MIT](./LICENSE)
