@@ -321,13 +321,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     }
                 }
 
-                var authToken = Request.Headers["X-Emby-Token"].FirstOrDefault();
-                if (string.IsNullOrEmpty(authToken))
-                {
-                    authToken = Request.Query["api_key"].FirstOrDefault();
-                }
-
-                await _avatarService.SetUserAvatarAsync(targetUserId, request.AvatarId, authToken);
+                await _avatarService.SetUserAvatarAsync(targetUserId, request.AvatarId);
 
                 return Ok(new { message = "Avatar set successfully" });
             }
@@ -438,35 +432,32 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         {
             try
             {
-                var users = _userManager.Users;
-                var userStatuses = new List<object>();
-
-                foreach (var user in users)
+                var userStatuses = _userManager.Users.Select(user =>
                 {
                     var avatarId = _avatarService.GetUserAvatarId(user.Id);
                     var profileImageExists = user.ProfileImage != null
                         && !string.IsNullOrEmpty(user.ProfileImage.Path)
                         && System.IO.File.Exists(user.ProfileImage.Path);
-
-                    userStatuses.Add(new
+                    var status = avatarId != null && profileImageExists ? "ok" :
+                                 avatarId != null ? "missing_file" :
+                                 "no_avatar";
+                    return new
                     {
                         userId = user.Id.ToString(),
                         username = user.Username,
-                        avatarId = avatarId,
+                        avatarId,
                         hasProfileImage = user.ProfileImage != null,
                         profileImagePath = user.ProfileImage?.Path,
-                        profileImageExists = profileImageExists,
-                        status = avatarId != null && profileImageExists ? "ok" :
-                                 avatarId != null && !profileImageExists ? "missing_file" :
-                                 "no_avatar"
-                    });
-                }
+                        profileImageExists,
+                        status
+                    };
+                }).ToList();
 
                 return Ok(new
                 {
-                    totalUsers = users.Count(),
-                    usersWithAvatars = userStatuses.Count(u => (string)((dynamic)u).avatarId != null),
-                    usersWithMissingFiles = userStatuses.Count(u => (string)((dynamic)u).status == "missing_file"),
+                    totalUsers = userStatuses.Count,
+                    usersWithAvatars = userStatuses.Count(u => u.avatarId != null),
+                    usersWithMissingFiles = userStatuses.Count(u => u.status == "missing_file"),
                     users = userStatuses
                 });
             }

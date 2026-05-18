@@ -248,9 +248,8 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// </summary>
         /// <param name="userId">The user ID.</param>
         /// <param name="avatarId">The avatar ID.</param>
-        /// <param name="authToken">The authentication token (not used).</param>
         /// <returns>Task representing the operation.</returns>
-        public async Task SetUserAvatarAsync(Guid userId, string avatarId, string? authToken = null)
+        public async Task SetUserAvatarAsync(Guid userId, string avatarId)
         {
             _logger.LogInformation("SetUserAvatarAsync called: userId={UserId}, avatarId={AvatarId}", userId, avatarId);
 
@@ -400,7 +399,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <summary>
         /// Cleans up old profile image files in the user directory, keeping only the current one.
         /// </summary>
-        private async Task CleanupOldProfileFilesAsync(string userDataPath, string? currentProfilePath)
+        private Task CleanupOldProfileFilesAsync(string userDataPath, string? currentProfilePath)
         {
             try
             {
@@ -419,25 +418,16 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
                     try
                     {
-                        await Task.Run(() =>
-                        {
-                            try
-                            {
-                                using var stream = File.Open(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                            }
-                            catch (IOException)
-                            {
-                                return;
-                            }
-
-                            File.Delete(file);
-                        }).ConfigureAwait(false);
-
+                        File.Delete(file);
                         _logger.LogDebug("Cleaned up old profile file: {File}", file);
+                    }
+                    catch (IOException)
+                    {
+                        _logger.LogDebug("Could not delete old profile file (may be in use): {File}", file);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogDebug(ex, "Could not delete old profile file (may be in use): {File}", file);
+                        _logger.LogDebug(ex, "Could not delete old profile file: {File}", file);
                     }
                 }
             }
@@ -445,6 +435,8 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             {
                 _logger.LogWarning(ex, "Error during old profile file cleanup");
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
