@@ -41,7 +41,6 @@ public class ScriptInjectorMiddleware
             return;
         }
 
-        var compressionFeature = context.Features.Get<IHttpResponseBodyFeature>();
         context.Features.Set<IHttpsCompressionFeature>(null);
         context.Request.Headers.Remove("Accept-Encoding");
 
