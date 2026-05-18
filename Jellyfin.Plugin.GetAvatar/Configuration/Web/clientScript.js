@@ -101,6 +101,15 @@
         }
     }
 
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function renderAvatars(list) {
         const container = document.getElementById('avatarGridContainer');
 
@@ -110,10 +119,10 @@
         }
 
         container.innerHTML = list.map(avatar => `
-            <div class="avatar-option card" data-id="${avatar.Id}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
+            <div class="avatar-option card" data-id="${escapeHtml(avatar.Id)}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
                 <div class="cardBox">
-                    <img src="${avatar.Url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
-                    <div style="font-size:0.8em;margin-top:0.5em;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${avatar.Name}</div>
+                    <img src="${escapeHtml(avatar.Url)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
+                    <div style="font-size:0.8em;margin-top:0.5em;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(avatar.Name)}</div>
                 </div>
             </div>
         `).join('');

@@ -109,6 +109,15 @@
         const avatarContainer = view.querySelector('#avatarContainer');
         let selectedAvatarId = null;
 
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function loadAvatars() {
             fetch(ApiClient.getUrl('/GetAvatar/Avatars'), {
                 headers: { 'X-Emby-Token': ApiClient.accessToken() }
@@ -143,11 +152,11 @@
                 const name = avatar.Name || avatar.name;
                 const url = avatar.Url || avatar.url;
                 html += `
-                    <div class="avatar-option" data-avatar-id="${id}">
+                    <div class="avatar-option" data-avatar-id="${escapeHtml(id)}">
                         <div class="avatar-image-wrapper">
-                            <img src="${url}" alt="${name}" loading="lazy" />
+                            <img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" />
                         </div>
-                        <div class="avatar-name" title="${name}">${name}</div>
+                        <div class="avatar-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
                     </div>
                 `;
             });

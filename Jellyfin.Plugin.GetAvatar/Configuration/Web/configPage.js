@@ -85,6 +85,15 @@ const getAvatarCss = `
 }
 `;
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export default function (view) {
   const styleId = 'GetAvatarPluginStyles';
   if (!document.getElementById(styleId)) {
@@ -149,10 +158,10 @@ export default function (view) {
       const url = avatar.Url || avatar.url;
 
       html += `
-                <div class="avatar-card" data-avatar-id="${id}">
-                    <button class="delete-button" data-avatar-id="${id}" title="Delete">×</button>
+                <div class="avatar-card" data-avatar-id="${escapeHtml(id)}">
+                    <button class="delete-button" data-avatar-id="${escapeHtml(id)}" title="Delete">×</button>
                     <div class="avatar-image-container">
-                        <img src="${url}" alt="${name}" class="avatar-image" loading="lazy" width="100" height="100" />
+                        <img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" class="avatar-image" loading="lazy" width="100" height="100" />
                     </div>
                 </div>
             `;
@@ -173,9 +182,13 @@ export default function (view) {
   }
 
   function deleteAvatar(avatarId) {
-    if (!confirm("Delete this avatar?")) {
-      return;
-    }
+    Dashboard.confirm("Delete this avatar?", "Confirm Deletion").then(function (confirmed) {
+      if (!confirmed) return;
+      _deleteAvatar(avatarId);
+    });
+  }
+
+  function _deleteAvatar(avatarId) {
 
     Dashboard.showLoadingMsg();
 
