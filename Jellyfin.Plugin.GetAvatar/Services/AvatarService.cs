@@ -405,7 +405,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             {
                 if (!Directory.Exists(userDataPath))
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var profileFiles = Directory.GetFiles(userDataPath, "profile_*");

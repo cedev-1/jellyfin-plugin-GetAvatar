@@ -155,7 +155,7 @@ export default function (view) {
       ).toLocaleDateString();
       const id = avatar.Id || avatar.id;
       const name = avatar.Name || avatar.name;
-      const url = avatar.Url || avatar.url;
+      const url = ApiClient.getUrl("/GetAvatar/Image/" + id);
 
       html += `
                 <div class="avatar-card" data-avatar-id="${escapeHtml(id)}">

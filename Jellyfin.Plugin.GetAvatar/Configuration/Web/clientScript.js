@@ -121,7 +121,7 @@
         container.innerHTML = list.map(avatar => `
             <div class="avatar-option card" data-id="${escapeHtml(avatar.Id)}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
                 <div class="cardBox">
-                    <img src="${escapeHtml(avatar.Url)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
+                    <img src="${escapeHtml(ApiClient.getUrl('/GetAvatar/Image/' + avatar.Id))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
                     <div style="font-size:0.8em;margin-top:0.5em;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(avatar.Name)}</div>
                 </div>
             </div>
