@@ -182,13 +182,9 @@ export default function (view) {
   }
 
   function deleteAvatar(avatarId) {
-    Dashboard.confirm("Delete this avatar?", "Confirm Deletion").then(function (confirmed) {
-      if (!confirmed) return;
-      _deleteAvatar(avatarId);
-    });
-  }
-
-  function _deleteAvatar(avatarId) {
+    if (!confirm("Delete this avatar?")) {
+      return;
+    }
 
     Dashboard.showLoadingMsg();
 
