@@ -45,8 +45,15 @@ jobs:
           MD5=$(md5sum Jellyfin.Plugin.GetAvatar-v${{ env.VERSION }}.zip | awk '{print $1}')
           echo "MD5=$MD5" >> $GITHUB_ENV
 
-      - name: Update manifest.json
+      - name: Update and Commit manifest.json
         run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # Checkout the latest main to avoid conflicts
+          git fetch origin
+          git checkout -B main origin/main
+
           # Create a JSON object for the new version
           cat <<EOF > new_version.json
           {
@@ -63,16 +70,9 @@ jobs:
           jq '.[0].versions = ([input] + .[0].versions)' manifest.json new_version.json > manifest.tmp && mv manifest.tmp manifest.json
           rm new_version.json
 
-      - name: Commit manifest.json
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git stash
-          git pull --rebase origin main
-          git stash pop
           git add manifest.json
           git commit -m "Update manifest for v${{ env.VERSION }}"
-          git push origin HEAD:main
+          git push origin main
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
