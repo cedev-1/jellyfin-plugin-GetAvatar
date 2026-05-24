@@ -430,7 +430,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         {
             try
             {
-                var userStatuses = _userManager.Users.Select(user =>
+                var userStatuses = GetAllUsers().Select(user =>
                 {
                     var avatarId = _avatarService.GetUserAvatarId(user.Id);
                     var profileImageExists = user.ProfileImage != null
@@ -464,6 +464,30 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 _logger.LogError(ex, "Failed to get avatar status");
                 return StatusCode(500, "Failed to get avatar status");
             }
+        }
+
+        /// <summary>
+        /// Gets all users, compatible with both Jellyfin ≤10.11.8 (Users property)
+        /// and Jellyfin ≥10.11.9 (GetUsers() method).
+        /// See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
+        /// </summary>
+        private IEnumerable<Jellyfin.Database.Implementations.Entities.User> GetAllUsers()
+        {
+            var managerObj = (object)_userManager;
+            var getUsersMethod = managerObj.GetType().GetMethod("GetUsers", Type.EmptyTypes);
+            if (getUsersMethod != null)
+            {
+                return (IEnumerable<Jellyfin.Database.Implementations.Entities.User>)(getUsersMethod.Invoke(_userManager, null) ?? Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>());
+            }
+
+            var usersProperty = managerObj.GetType().GetProperty("Users");
+            if (usersProperty != null)
+            {
+                return (IEnumerable<Jellyfin.Database.Implementations.Entities.User>)(usersProperty.GetValue(_userManager) ?? Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>());
+            }
+
+            _logger.LogWarning("Could not find Users property or GetUsers() method on IUserManager");
+            return Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>();
         }
     }
 }
