@@ -295,21 +295,11 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             var profileImagePath = Path.Combine(userDataPath, $"profile_avatar_{avatarId}_{timestamp}{extension}");
             _logger.LogInformation("Profile image path: {Path}", profileImagePath);
 
-            string? oldProfileImagePath = null;
             var fileCopied = false;
 
             try
             {
-                // Remember the old path before making changes
-                if (user.ProfileImage != null && !string.IsNullOrEmpty(user.ProfileImage.Path))
-                {
-                    oldProfileImagePath = user.ProfileImage.Path;
-                }
-
-                // Clean up old profile files first to prevent accumulation
-                await CleanupOldProfileFilesAsync(userDataPath, oldProfileImagePath).ConfigureAwait(false);
-
-                // Copy the new avatar file first (before deleting anything)
+                // Copy the new avatar file
                 File.Copy(avatarPath, profileImagePath, overwrite: true);
                 fileCopied = true;
                 _logger.LogInformation("Copied avatar to profile path");
@@ -329,21 +319,12 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
                 _logger.LogInformation("Saved user changes to database");
 
-                // Delete old profile image file after the database update succeeded
-                if (oldProfileImagePath != null
-                    && oldProfileImagePath != profileImagePath
-                    && File.Exists(oldProfileImagePath))
-                {
-                    try
-                    {
-                        File.Delete(oldProfileImagePath);
-                        _logger.LogInformation("Deleted old profile image: {Path}", oldProfileImagePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Could not delete old profile image (orphan file left)");
-                    }
-                }
+                // Note: old profile files are intentionally NOT deleted here.
+                // Jellyfin's UserManager may cache the old profile image path for some time,
+                // so deleting immediately causes 500 errors when Jellyfin tries to serve the stale path.
+                // Orphaned files are cleaned up by AvatarValidationService on startup.
+                // See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
+                // and version of the plugin 1.5.5.0
             }
             catch (Exception ex)
             {
@@ -396,46 +377,27 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         }
 
         /// <summary>
-        /// Cleans up old profile image files in the user directory, keeping only the current one.
+        /// Gets all users, compatible with both Jellyfin ≤10.11.8 (Users property)
+        /// and Jellyfin ≥10.11.9 (GetUsers() method).
+        /// See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
         /// </summary>
-        private Task CleanupOldProfileFilesAsync(string userDataPath, string? currentProfilePath)
+        private IEnumerable<Jellyfin.Database.Implementations.Entities.User> GetAllUsers()
         {
-            try
+            var managerObj = (object)_userManager;
+            var getUsersMethod = managerObj.GetType().GetMethod("GetUsers", System.Type.EmptyTypes);
+            if (getUsersMethod != null)
             {
-                if (!Directory.Exists(userDataPath))
-                {
-                    return Task.CompletedTask;
-                }
-
-                var profileFiles = Directory.GetFiles(userDataPath, "profile_*");
-                foreach (var file in profileFiles)
-                {
-                    if (string.Equals(file, currentProfilePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        File.Delete(file);
-                        _logger.LogDebug("Cleaned up old profile file: {File}", file);
-                    }
-                    catch (IOException)
-                    {
-                        _logger.LogDebug("Could not delete old profile file (may be in use): {File}", file);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Could not delete old profile file: {File}", file);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error during old profile file cleanup");
+                return (IEnumerable<Jellyfin.Database.Implementations.Entities.User>)(getUsersMethod.Invoke(_userManager, null) ?? Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>());
             }
 
-            return Task.CompletedTask;
+            var usersProperty = managerObj.GetType().GetProperty("Users");
+            if (usersProperty != null)
+            {
+                return (IEnumerable<Jellyfin.Database.Implementations.Entities.User>)(usersProperty.GetValue(_userManager) ?? Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>());
+            }
+
+            _logger.LogWarning("Could not find Users property or GetUsers() method on IUserManager");
+            return Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>();
         }
 
         /// <summary>
@@ -578,7 +540,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
             try
             {
-                var users = _userManager.Users;
+                var users = GetAllUsers();
                 foreach (var user in users)
                 {
                     try
