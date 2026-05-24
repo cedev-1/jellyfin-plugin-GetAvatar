@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.GetAvatar;
 /// </summary>
 public class ScriptInjectorMiddleware
 {
-    private const string ScriptTag = @"<script src=""/GetAvatar/ClientScript""></script>";
+    private const string ScriptTag = @"<script src=""../GetAvatar/ClientScript""></script>";
 
     private readonly RequestDelegate _next;
     private readonly ILogger<ScriptInjectorMiddleware> _logger;
