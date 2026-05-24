@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.GetAvatar.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.GetAvatar.Services
@@ -21,6 +24,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         private readonly IProviderManager _providerManager;
         private readonly IApplicationPaths _appPaths;
         private readonly ILogger<AvatarService> _logger;
+        private readonly IDbContextFactory<JellyfinDbContext>? _dbContextFactory;
         private readonly string _avatarDirectory;
 
         /// <summary>
@@ -30,16 +34,31 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <param name="providerManager">The provider manager.</param>
         /// <param name="appPaths">The application paths.</param>
         /// <param name="logger">The logger instance.</param>
+        /// <param name="serviceProvider">The service provider.</param>
         public AvatarService(
             IUserManager userManager,
             IProviderManager providerManager,
             IApplicationPaths appPaths,
-            ILogger<AvatarService> logger)
+            ILogger<AvatarService> logger,
+            IServiceProvider serviceProvider)
         {
             _userManager = userManager;
             _providerManager = providerManager;
             _appPaths = appPaths;
             _logger = logger;
+
+            try
+            {
+                _dbContextFactory = serviceProvider.GetService<IDbContextFactory<JellyfinDbContext>>();
+                if (_dbContextFactory != null)
+                {
+                    _logger.LogInformation("DbContext factory resolved — using direct DB access for profile images");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "DbContext factory not available, will use UserManager fallback");
+            }
 
             _logger.LogInformation(
                 "AvatarService constructor called. Plugin.Instance is {Status}",
@@ -304,27 +323,51 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 fileCopied = true;
                 _logger.LogInformation("Copied avatar to profile path");
 
-                // Update or create user's profile image reference
-                if (user.ProfileImage != null)
+                // Update the user's profile image in the database.
+                // Jellyfin 10.11.9+: UserManager.UpdateUserAsync uses a fresh DbContext with
+                // Update() on detached entities, which does NOT persist owned entity changes
+                // (in-place Path modification ignored, new ImageInfo causes UNIQUE constraint).
+                // Use IDbContextFactory to get a tracked entity and modify it directly.
+                // See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
+                if (_dbContextFactory != null)
                 {
-                    user.ProfileImage.Path = profileImagePath;
-                    _logger.LogInformation("Updated existing profile image path");
+                    await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+                    var trackedUser = await dbContext.Users
+                        .Include(u => u.ProfileImage)
+                        .FirstOrDefaultAsync(u => u.Id == userId)
+                        .ConfigureAwait(false);
+
+                    if (trackedUser == null)
+                    {
+                        throw new InvalidOperationException("User not found in database");
+                    }
+
+                    if (trackedUser.ProfileImage != null)
+                    {
+                        trackedUser.ProfileImage.Path = profileImagePath;
+                    }
+                    else
+                    {
+                        trackedUser.ProfileImage = new ImageInfo(profileImagePath);
+                    }
+
+                    await dbContext.SaveChangesAsync().ConfigureAwait(false);
+                    _logger.LogInformation("Updated profile image via DbContext: {Path}", profileImagePath);
                 }
                 else
                 {
-                    user.ProfileImage = new ImageInfo(profileImagePath);
-                    _logger.LogInformation("Created new profile image reference");
+                    if (user.ProfileImage != null)
+                    {
+                        user.ProfileImage.Path = profileImagePath;
+                    }
+                    else
+                    {
+                        user.ProfileImage = new ImageInfo(profileImagePath);
+                    }
+
+                    await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
+                    _logger.LogInformation("Updated profile image via UserManager: {Path}", profileImagePath);
                 }
-
-                await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
-                _logger.LogInformation("Saved user changes to database");
-
-                // Note: old profile files are intentionally NOT deleted here.
-                // Jellyfin's UserManager may cache the old profile image path for some time,
-                // so deleting immediately causes 500 errors when Jellyfin tries to serve the stale path.
-                // Orphaned files are cleaned up by AvatarValidationService on startup.
-                // See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
-                // and version of the plugin 1.5.5.0
             }
             catch (Exception ex)
             {

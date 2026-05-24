@@ -168,25 +168,25 @@
             }
 
             closeModal();
-            Dashboard.alert({ message: 'Avatar updated!', title: 'Success' });
 
-            const timestamp = Date.now();
-            document.querySelectorAll('img').forEach(img => {
-                const src = img.src || '';
-                if (src.includes('/Users/') && src.includes('/Images/')) {
-                    const baseUrl = src.split('?')[0];
-                    img.src = baseUrl + '?t=' + timestamp;
-                }
-            });
+            try { Dashboard.alert({ message: 'Avatar updated!', title: 'Success' }); } catch (e) { console.warn('GetAvatar: Dashboard.alert error (success)', e); }
 
-            setTimeout(() => {
-                const url = new URL(location.href);
-                url.searchParams.set('_refresh', timestamp);
-                location.href = url.toString();
-            }, 800);
+            try {
+                const timestamp = Date.now();
+                document.querySelectorAll('img').forEach(img => {
+                    const src = img.src || '';
+                    if (src.includes('/Users/') && src.includes('/Images/')) {
+                        const baseUrl = src.split('?')[0];
+                        img.src = baseUrl + '?t=' + timestamp;
+                    }
+                });
+                setTimeout(() => { location.reload(); }, 800);
+            } catch (e) {
+                console.warn('GetAvatar: image refresh error', e);
+            }
         } catch (error) {
-            console.error('GetAvatar: Failed to set avatar', error);
-            Dashboard.alert({ message: 'Failed to set avatar', title: 'Error' });
+            console.error('GetAvatar: Failed to set avatar', error.name + ': ' + error.message, error.stack);
+            try { Dashboard.alert({ message: 'Failed to set avatar: ' + error.message, title: 'Error' }); } catch (e) { alert('Failed to set avatar: ' + error.message); }
             btn.disabled = false;
             btn.textContent = 'Set as My Avatar';
         }
