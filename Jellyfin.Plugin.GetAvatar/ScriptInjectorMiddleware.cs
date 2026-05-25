@@ -111,9 +111,8 @@ public class ScriptInjectorMiddleware
     private static bool IsIndexHtmlRequest(string path)
     {
         return path.Equals("/", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/web/index.html", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/web/", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/web", StringComparison.OrdinalIgnoreCase);
+            || path.EndsWith("/index.html", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith("/web/", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith("/web", StringComparison.OrdinalIgnoreCase);
     }
 }
