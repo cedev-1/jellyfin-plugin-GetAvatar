@@ -36,6 +36,10 @@ User profile page will have a new button "Choose from Gallery".
 
 ![User View](./assets/avatar_add.png)
 
+## Avatar Example
+
+For example, you can import this [Netflix avatar pack](https://imgur.com/gallery/netflix-all-profile-icons-ToZ21Gg)
+
 ## Disclaimer
 
 It may have some bugs. If you find any bug, please open an [issue](https://github.com/cedev-1/jellyfin-plugin-GetAvatar/issues).
