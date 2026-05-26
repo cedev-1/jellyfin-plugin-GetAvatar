@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Jellyfin.Database.Implementations;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.GetAvatar.Configuration;
 using MediaBrowser.Common.Configuration;
+using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.GetAvatar.Services
@@ -24,7 +22,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         private readonly IProviderManager _providerManager;
         private readonly IApplicationPaths _appPaths;
         private readonly ILogger<AvatarService> _logger;
-        private readonly IDbContextFactory<JellyfinDbContext>? _dbContextFactory;
+        private readonly IServerConfigurationManager _serverConfigurationManager;
         private readonly string _avatarDirectory;
 
         /// <summary>
@@ -34,31 +32,19 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <param name="providerManager">The provider manager.</param>
         /// <param name="appPaths">The application paths.</param>
         /// <param name="logger">The logger instance.</param>
-        /// <param name="serviceProvider">The service provider.</param>
+        /// <param name="serverConfigurationManager">The server configuration manager.</param>
         public AvatarService(
             IUserManager userManager,
             IProviderManager providerManager,
             IApplicationPaths appPaths,
             ILogger<AvatarService> logger,
-            IServiceProvider serviceProvider)
+            IServerConfigurationManager serverConfigurationManager)
         {
             _userManager = userManager;
             _providerManager = providerManager;
             _appPaths = appPaths;
             _logger = logger;
-
-            try
-            {
-                _dbContextFactory = serviceProvider.GetService<IDbContextFactory<JellyfinDbContext>>();
-                if (_dbContextFactory != null)
-                {
-                    _logger.LogInformation("DbContext factory resolved — using direct DB access for profile images");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "DbContext factory not available, will use UserManager fallback");
-            }
+            _serverConfigurationManager = serverConfigurationManager;
 
             _logger.LogInformation(
                 "AvatarService constructor called. Plugin.Instance is {Status}",
@@ -302,90 +288,41 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
             _logger.LogInformation("MIME type: {MimeType}, Extension: {Extension}", mimeType, extension);
 
-            // Build the user's profile image path
-            var userDataPath = Path.Combine(_appPaths.DataPath, "users", userId.ToString("N"));
-            _logger.LogInformation("User data path: {Path}", userDataPath);
+            // Use Jellyfin's native user profile image path and save pipeline.
+            // This mirrors Jellyfin.Api.Controllers.ImageController.PostUserImage.
+            var userDataPath = Path.Combine(
+                _serverConfigurationManager.ApplicationPaths.UserConfigurationDirectoryPath,
+                user.Username);
+
+            _logger.LogInformation("User profile image directory: {Path}", userDataPath);
 
             Directory.CreateDirectory(userDataPath);
 
-            // Use avatarId in filename for stability (same avatar = same filename pattern)
-            // Add timestamp suffix to force cache refresh
-            var timestamp = DateTime.UtcNow.Ticks;
-            var profileImagePath = Path.Combine(userDataPath, $"profile_avatar_{avatarId}_{timestamp}{extension}");
+            var profileImagePath = Path.Combine(userDataPath, "profile" + extension);
             _logger.LogInformation("Profile image path: {Path}", profileImagePath);
-
-            var fileCopied = false;
 
             try
             {
-                // Copy the new avatar file
-                File.Copy(avatarPath, profileImagePath, overwrite: true);
-                fileCopied = true;
-                _logger.LogInformation("Copied avatar to profile path");
-
-                // Update the user's profile image in the database.
-                // Jellyfin 10.11.9+: UserManager.UpdateUserAsync uses a fresh DbContext with
-                // Update() on detached entities, which does NOT persist owned entity changes
-                // (in-place Path modification ignored, new ImageInfo causes UNIQUE constraint).
-                // Use IDbContextFactory to get a tracked entity and modify it directly.
-                // See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
-                if (_dbContextFactory != null)
+                if (user.ProfileImage is not null)
                 {
-                    await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-                    var trackedUser = await dbContext.Users
-                        .Include(u => u.ProfileImage)
-                        .FirstOrDefaultAsync(u => u.Id == userId)
-                        .ConfigureAwait(false);
-
-                    if (trackedUser == null)
-                    {
-                        throw new InvalidOperationException("User not found in database");
-                    }
-
-                    if (trackedUser.ProfileImage != null)
-                    {
-                        trackedUser.ProfileImage.Path = profileImagePath;
-                    }
-                    else
-                    {
-                        trackedUser.ProfileImage = new ImageInfo(profileImagePath);
-                    }
-
-                    await dbContext.SaveChangesAsync().ConfigureAwait(false);
-                    _logger.LogInformation("Updated profile image via DbContext: {Path}", profileImagePath);
+                    await _userManager.ClearProfileImageAsync(user).ConfigureAwait(false);
+                    _logger.LogInformation("Cleared existing profile image for user {UserName}", user.Username);
                 }
-                else
-                {
-                    if (user.ProfileImage != null)
-                    {
-                        user.ProfileImage.Path = profileImagePath;
-                    }
-                    else
-                    {
-                        user.ProfileImage = new ImageInfo(profileImagePath);
-                    }
 
-                    await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
-                    _logger.LogInformation("Updated profile image via UserManager: {Path}", profileImagePath);
-                }
+                user.ProfileImage = new ImageInfo(profileImagePath);
+
+                await using var stream = File.OpenRead(avatarPath);
+                await _providerManager
+                    .SaveImage(stream, mimeType, profileImagePath)
+                    .ConfigureAwait(false);
+
+                await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
+
+                _logger.LogInformation("Updated profile image via Jellyfin image pipeline: {Path}", profileImagePath);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to save/update profile image");
-
-                // Clean up the copied file if database update failed
-                if (fileCopied && File.Exists(profileImagePath))
-                {
-                    try
-                    {
-                        File.Delete(profileImagePath);
-                        _logger.LogInformation("Cleaned up orphaned file after failed update: {Path}", profileImagePath);
-                    }
-                    catch (Exception cleanupEx)
-                    {
-                        _logger.LogWarning(cleanupEx, "Could not clean up orphaned file: {Path}", profileImagePath);
-                    }
-                }
+                _logger.LogError(ex, "Failed to save/update profile image via Jellyfin image pipeline");
 
                 throw;
             }
