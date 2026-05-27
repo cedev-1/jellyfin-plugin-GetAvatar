@@ -49,8 +49,6 @@ It may have some bugs. If you find any bug, please open an [issue](https://githu
 
 It is possible that on already active sessions the button is not displayed on the profile. You can clear your browser cache.
 
-possible that we need to restart after making the v1.5.3.0 update.
-
 ## License
 
 [MIT](./LICENSE)
