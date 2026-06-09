@@ -115,6 +115,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     ".jpg" or ".jpeg" => "image/jpeg",
                     ".png" => "image/png",
                     ".webp" => "image/webp",
+                    ".gif" => "image/gif",
                     _ => "application/octet-stream"
                 };
 
@@ -145,7 +146,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 }
 
                 // Validate file type
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
                 var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                 if (!allowedExtensions.Contains(extension))
                 {
@@ -240,6 +241,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     ".jpg" or ".jpeg" => "image/jpeg",
                     ".png" => "image/png",
                     ".webp" => "image/webp",
+                    ".gif" => "image/gif",
                     _ => "application/octet-stream"
                 };
 

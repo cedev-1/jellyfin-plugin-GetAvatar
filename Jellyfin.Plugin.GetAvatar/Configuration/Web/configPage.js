@@ -300,6 +300,7 @@ export default function (view) {
         "image/jpeg",
         "image/png",
         "image/webp",
+        "image/gif",
       ];
       const validFiles = [];
       const errors = [];

@@ -283,6 +283,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".png" => "image/png",
                 ".webp" => "image/webp",
+                ".gif" => "image/gif",
                 _ => "image/jpeg"
             };
 
