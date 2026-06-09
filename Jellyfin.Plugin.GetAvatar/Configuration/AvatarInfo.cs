@@ -26,5 +26,10 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets the date when the avatar was added.
         /// </summary>
         public DateTime DateAdded { get; set; }
+
+        /// <summary>
+        /// Gets or sets the category of the avatar.
+        /// </summary>
+        public string Category { get; set; } = string.Empty;
     }
 }

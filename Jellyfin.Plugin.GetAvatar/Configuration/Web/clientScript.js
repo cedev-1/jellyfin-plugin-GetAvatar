@@ -118,14 +118,45 @@
             return;
         }
 
-        container.innerHTML = list.map(avatar => `
+        // Group avatars by category
+        const grouped = {};
+        list.forEach(function(avatar) {
+            const category = avatar.Category || avatar.category || '';
+            if (!grouped[category]) grouped[category] = [];
+            grouped[category].push(avatar);
+        });
+
+        var categories = Object.keys(grouped).sort(function(a, b) {
+            if (a === '' && b !== '') return -1;
+            if (a !== '' && b === '') return 1;
+            return a.localeCompare(b);
+        });
+
+        var html = '';
+        var hasMultipleCategories = categories.length > 1 || categories[0] !== '';
+
+        categories.forEach(function(category) {
+            var categoryAvatars = grouped[category];
+
+            if (hasMultipleCategories && category) {
+                html += '<div style="grid-column:1/-1;margin-top:1em;margin-bottom:0.3em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">';
+                html += '<h3 style="margin:0;font-size:1em;font-weight:600;">' + escapeHtml(category) + '</h3>';
+                html += '</div>';
+            }
+
+            categoryAvatars.forEach(function(avatar) {
+                html += `
             <div class="avatar-option card" data-id="${escapeHtml(avatar.Id)}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
                 <div class="cardBox">
                     <img src="${escapeHtml(ApiClient.getUrl('/GetAvatar/Image/' + avatar.Id))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
                     <div style="font-size:0.8em;margin-top:0.5em;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(avatar.Name)}</div>
                 </div>
             </div>
-        `).join('');
+        `;
+            });
+        });
+
+        container.innerHTML = html;
 
         container.querySelectorAll('.avatar-option').forEach(el => {
             el.onclick = function() {

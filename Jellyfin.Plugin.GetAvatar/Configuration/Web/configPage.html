@@ -17,16 +17,41 @@
         </div>
 
         <div class="upload-box">
-          <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple />
-          <label for="avatarFileInput" class="upload-label">
-            <span class="material-icons" style="font-size: 1.1em">add_photo_alternate</span>
-            Add Avatars
-          </label>
-          <span class="upload-info">JPG, PNG, WebP, GIF • Max 5MB each</span>
-          <span id="selectedFile" class="selected-file-name"><span id="fileName"></span></span>
-          <button id="uploadButton" is="emby-button" type="button" class="raised button-submit">
-            Upload
-          </button>
+          <div class="upload-buttons-row">
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple />
+            <label for="avatarFileInput" class="upload-label">
+              <span class="material-icons" style="font-size: 1.1em">add_photo_alternate</span>
+              Add Avatars
+            </label>
+            <input type="file" id="avatarFolderInput" webkitdirectory directory multiple />
+            <label for="avatarFolderInput" class="upload-label">
+              <span class="material-icons" style="font-size: 1.1em">create_new_folder</span>
+              Add Folder
+            </label>
+          </div>
+          <details class="category-details">
+            <summary class="category-summary">
+              <span class="material-icons" style="font-size:1em;vertical-align:middle;">folder_open</span>
+              Category
+              <span class="category-info-icon">ⓘ<span class="category-tooltip">
+                <strong>What is a category?</strong><br>
+                Avatars with a category are grouped under that name in the gallery.<br>
+                Users will see sections like <em>Disney</em>, <em>Marvel</em>, etc.<br><br>
+                Leave empty to upload without a category.<br>
+                When using <em>Add Folder</em>, the folder name is filled in automatically.
+              </span></span>
+            </summary>
+            <div class="category-field">
+              <input type="text" id="categoryInput" is="emby-input" placeholder="e.g. Disney, Marvel..." />
+            </div>
+          </details>
+          <div class="upload-submit-row">
+            <span class="upload-info">JPG, PNG, WebP, GIF • Max 5MB each</span>
+            <span id="selectedFile" class="selected-file-name"><span id="fileName"></span></span>
+            <button id="uploadButton" is="emby-button" type="button" class="raised button-submit">
+              Upload
+            </button>
+          </div>
         </div>
 
         <div class="verticalSection">

@@ -82,6 +82,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     a.Name,
                     a.FileName,
                     a.DateAdded,
+                    a.Category,
                     Url = $"/GetAvatar/Image/{a.Id}"
                 }));
             }
@@ -133,10 +134,11 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// Uploads a new avatar (admin only).
         /// </summary>
         /// <param name="file">The image file.</param>
+        /// <param name="category">The optional category for the avatar.</param>
         /// <returns>The created avatar info.</returns>
         [HttpPost("Upload")]
         [Authorize(Policy = "RequiresElevation")]
-        public async Task<IActionResult> UploadAvatar(IFormFile file)
+        public async Task<IActionResult> UploadAvatar(IFormFile file, [FromQuery] string category = "")
         {
             try
             {
@@ -163,7 +165,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 await file.CopyToAsync(memoryStream);
                 var imageData = memoryStream.ToArray();
 
-                var avatarInfo = await _avatarService.SaveAvatarAsync(file.FileName, imageData);
+                var avatarInfo = await _avatarService.SaveAvatarAsync(file.FileName, imageData, category);
 
                 return Ok(new
                 {
@@ -171,6 +173,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     avatarInfo.Name,
                     avatarInfo.FileName,
                     avatarInfo.DateAdded,
+                    avatarInfo.Category,
                     Url = $"/GetAvatar/Image/{avatarInfo.Id}"
                 });
             }

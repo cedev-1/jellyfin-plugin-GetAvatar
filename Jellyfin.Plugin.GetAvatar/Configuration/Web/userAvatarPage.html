@@ -145,23 +145,51 @@
                 return;
             }
 
-            let html = '<div class="avatar-grid">';
-
+            // Group avatars by category
+            const grouped = {};
             avatars.forEach(avatar => {
-                const id = avatar.Id || avatar.id;
-                const name = avatar.Name || avatar.name;
-                const url = ApiClient.getUrl("/GetAvatar/Image/" + id);
-                html += `
-                    <div class="avatar-option" data-avatar-id="${escapeHtml(id)}">
-                        <div class="avatar-image-wrapper">
-                            <img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" />
-                        </div>
-                        <div class="avatar-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-                    </div>
-                `;
+                const category = avatar.Category || avatar.category || '';
+                if (!grouped[category]) grouped[category] = [];
+                grouped[category].push(avatar);
             });
 
-            html += '</div>';
+            const categories = Object.keys(grouped).sort((a, b) => {
+                if (a === '' && b !== '') return -1;
+                if (a !== '' && b === '') return 1;
+                return a.localeCompare(b);
+            });
+
+            let html = '';
+            const hasMultipleCategories = categories.length > 1 || categories[0] !== '';
+
+            categories.forEach(category => {
+                const categoryAvatars = grouped[category];
+
+                if (hasMultipleCategories && category) {
+                    html += `<div style="margin-top:1.5em;margin-bottom:0.5em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">
+                        <h3 style="margin:0;font-size:1.1em;font-weight:600;">${escapeHtml(category)}</h3>
+                    </div>`;
+                }
+
+                html += '<div class="avatar-grid">';
+
+                categoryAvatars.forEach(avatar => {
+                    const id = avatar.Id || avatar.id;
+                    const name = avatar.Name || avatar.name;
+                    const url = ApiClient.getUrl("/GetAvatar/Image/" + id);
+                    html += `
+                        <div class="avatar-option" data-avatar-id="${escapeHtml(id)}">
+                            <div class="avatar-image-wrapper">
+                                <img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" />
+                            </div>
+                            <div class="avatar-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            });
+
             html += `
                 <div class="button-container">
                     <button id="setAvatarButton" is="emby-button" type="button" class="raised button-submit" disabled>

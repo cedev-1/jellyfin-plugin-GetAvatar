@@ -119,8 +119,9 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// </summary>
         /// <param name="fileName">The file name.</param>
         /// <param name="imageData">The image data.</param>
+        /// <param name="category">The optional category for the avatar.</param>
         /// <returns>The saved avatar info.</returns>
-        public async Task<AvatarInfo> SaveAvatarAsync(string fileName, byte[] imageData)
+        public async Task<AvatarInfo> SaveAvatarAsync(string fileName, byte[] imageData, string category = "")
         {
             try
             {
@@ -136,7 +137,8 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                     Id = avatarId,
                     Name = Path.GetFileNameWithoutExtension(fileName),
                     FileName = savedFileName,
-                    DateAdded = DateTime.UtcNow
+                    DateAdded = DateTime.UtcNow,
+                    Category = category
                 };
 
                 // Add to configuration
