@@ -39,7 +39,7 @@ User profile page will have a new button "Choose from Gallery".
 
 ## Avatar
 
-You can import avatar packs from the repository [jellyfin-avatars](https://github.com/cedev-1/jellyfin-avatars).
+You can import avatar packs from the repository [jellyfin-avatars](https://github.com/cedev-1/jellyfin-avatars) or direct download from [web page](https://cedev-1.github.io/jellyfin-avatars/). 
 
 <img width="436" height="337" alt="image" src="https://github.com/user-attachments/assets/baa16380-6fd1-4d7e-9ef0-026ed04f6572" />
 
