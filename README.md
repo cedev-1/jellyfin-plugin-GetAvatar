@@ -27,7 +27,7 @@ https://raw.githubusercontent.com/cedev-1/Jellyfin-Plugin-GetAvatar/master/manif
 
 You just have to add avatar images, click on "Choose file" and "Upload". The image will be added to the collection of images. You can also remove images by clicking on the cross icon.
 
-<img width="3504" height="2092" alt="Screenshot 2026-06-09 at 19-02-53 GetAvatar" src="https://github.com/user-attachments/assets/4daf3596-7b8c-4604-b66e-aa4ba2395675" />
+<img width="3504" height="2092" alt="Screenshot 2026-06-10 at 10-45-41 GetAvatar" src="https://github.com/user-attachments/assets/ea45ede7-78cf-4ec3-81d8-d543886bea8d" />
 
 ## User View
 
