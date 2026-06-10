@@ -26,5 +26,10 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets the list of user avatar selections.
         /// </summary>
         public List<UserAvatarMapping> UserAvatars { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether new users without an avatar automatically receive a random one at startup.
+        /// </summary>
+        public bool EnableAutoAssign { get; set; }
     }
 }

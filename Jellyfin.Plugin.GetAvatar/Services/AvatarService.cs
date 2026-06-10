@@ -573,6 +573,83 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         }
 
         /// <summary>
+        /// Gets a random avatar from the available pool.
+        /// </summary>
+        /// <returns>A random avatar info, or null if no avatars exist.</returns>
+        public AvatarInfo? GetRandomAvatar()
+        {
+            var avatars = Plugin.Config.AvailableAvatars;
+            if (avatars == null || avatars.Count == 0)
+            {
+                return null;
+            }
+
+            var index = new Random().Next(avatars.Count);
+            return avatars[index];
+        }
+
+        /// <summary>
+        /// Assigns a default or random avatar to all users who have no avatar set.
+        /// </summary>
+        /// <returns>The number of users who received an avatar.</returns>
+        public async Task<int> AssignMissingAvatarsAsync()
+        {
+            if (Plugin.Instance == null)
+            {
+                return 0;
+            }
+
+            var avatars = Plugin.Config.AvailableAvatars;
+            if (avatars == null || avatars.Count == 0)
+            {
+                return 0;
+            }
+
+            var config = Plugin.Config;
+
+            if (!config.EnableAutoAssign)
+            {
+                return 0;
+            }
+
+            var assignedCount = 0;
+            var users = GetAllUsers();
+
+            foreach (var user in users)
+            {
+                try
+                {
+                    var hasProfileImage = user.ProfileImage != null
+                        && !string.IsNullOrEmpty(user.ProfileImage.Path)
+                        && File.Exists(user.ProfileImage.Path);
+
+                    if (hasProfileImage)
+                    {
+                        continue;
+                    }
+
+                    var target = GetRandomAvatar();
+                    if (target == null)
+                    {
+                        continue;
+                    }
+
+                    config.UserAvatars?.RemoveAll(x => x.UserId == user.Id.ToString());
+
+                    await SetUserAvatarAsync(user.Id, target.Id).ConfigureAwait(false);
+                    assignedCount++;
+                    _logger.LogInformation("Auto-assigned random avatar {AvatarId} to user {UserName}", target.Id, user.Username);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to auto-assign avatar to user {UserId}", user.Id);
+                }
+            }
+
+            return assignedCount;
+        }
+
+        /// <summary>
         /// Removes the avatar assignment from a user without deleting the avatar from the pool.
         /// This clears the user's profile image and removes the mapping.
         /// </summary>

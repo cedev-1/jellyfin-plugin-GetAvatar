@@ -472,6 +472,38 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         }
 
         /// <summary>
+        /// Gets plugin feature settings.
+        /// </summary>
+        /// <returns>Current feature settings.</returns>
+        [HttpGet("Settings")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult GetSettings()
+        {
+            return Ok(new { enableAutoAssign = Plugin.Config.EnableAutoAssign });
+        }
+
+        /// <summary>
+        /// Updates plugin feature settings.
+        /// </summary>
+        /// <param name="request">The settings to update.</param>
+        /// <returns>Status of operation.</returns>
+        [HttpPost("Settings")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult UpdateSettings([FromBody] PluginSettingsRequest request)
+        {
+            if (Plugin.Instance == null)
+            {
+                return StatusCode(500, "Plugin not initialized");
+            }
+
+            var config = Plugin.Config;
+            config.EnableAutoAssign = request.EnableAutoAssign;
+            Plugin.Instance.SaveConfiguration();
+
+            return Ok(new { message = "Settings saved" });
+        }
+
+        /// <summary>
         /// Gets all users, compatible with both Jellyfin ≤10.11.8 (Users property)
         /// and Jellyfin ≥10.11.9 (GetUsers() method).
         /// See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9

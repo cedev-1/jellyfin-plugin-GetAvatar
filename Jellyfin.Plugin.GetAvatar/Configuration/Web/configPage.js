@@ -175,6 +175,80 @@ const getAvatarCss = `
 .upload-label:active {
     opacity: 0.65;
 }
+.feature-settings {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+.feature-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    margin-bottom: 0.75em;
+}
+.feature-toggle-label-text {
+    font-size: 0.95em;
+    font-weight: 500;
+}
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.switch input { display: none; }
+.switch-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.15);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.switch-slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.switch input:checked + .switch-slider {
+    background: #00a4dc;
+}
+.switch input:checked + .switch-slider::before {
+    transform: translateX(18px);
+}
+.feature-info-icon {
+    font-size: 0.9em;
+    cursor: help;
+    position: relative;
+}
+.feature-tooltip {
+    display: none;
+    position: absolute;
+    left: 1.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 0.75em 1em;
+    font-size: 0.85em;
+    font-weight: normal;
+    white-space: normal;
+    width: 280px;
+    z-index: 100;
+    line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    pointer-events: none;
+}
+.feature-info-icon:hover .feature-tooltip {
+    display: block;
+}
 .upload-buttons-row {
     display: flex;
     flex-direction: row;
@@ -219,8 +293,39 @@ export default function (view) {
   const uploadButton = view.querySelector("#uploadButton");
   const selectedFileDiv = view.querySelector("#selectedFile");
   const fileNameSpan = view.querySelector("#fileName");
+  const enableAutoAssignSwitch = view.querySelector("#enableAutoAssign");
 
   let selectedFiles = [];
+
+  function loadSettings() {
+    ApiClient.fetch({
+      url: ApiClient.getUrl("/GetAvatar/Settings"),
+      type: "GET",
+      dataType: "json",
+    })
+      .then(function (settings) {
+        enableAutoAssignSwitch.checked = settings.enableAutoAssign;
+      })
+      .catch(function (error) {
+        console.error("GetAvatar: Failed to load settings", error);
+      });
+  }
+
+  function saveSettings() {
+    ApiClient.fetch({
+      url: ApiClient.getUrl("/GetAvatar/Settings"),
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ enableAutoAssign: enableAutoAssignSwitch.checked }),
+    })
+      .then(function () {
+        Dashboard.alert({ message: "Settings saved.", title: "Success" });
+      })
+      .catch(function (error) {
+        console.error("GetAvatar: Failed to save settings", error);
+        Dashboard.alert({ message: "Failed to save settings.", title: "Error" });
+      });
+  }
 
   function loadAvatars() {
     avatarListContainer.innerHTML =
@@ -562,8 +667,10 @@ export default function (view) {
   }
 
   uploadButton.addEventListener("click", uploadAvatar);
+  enableAutoAssignSwitch.addEventListener("change", saveSettings);
 
   view.addEventListener("viewshow", function () {
+    loadSettings();
     loadAvatars();
   });
 }

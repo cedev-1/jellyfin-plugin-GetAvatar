@@ -36,6 +36,12 @@ namespace Jellyfin.Plugin.GetAvatar
 
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
 
+                var assignedCount = await _avatarService.AssignMissingAvatarsAsync().ConfigureAwait(false);
+                if (assignedCount > 0)
+                {
+                    _logger.LogInformation("Auto-assigned avatars to {Count} user(s) without one.", assignedCount);
+                }
+
                 var repairedCount = await _avatarService.ValidateUserAvatarsAsync().ConfigureAwait(false);
 
                 if (repairedCount > 0)
