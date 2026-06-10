@@ -57,7 +57,11 @@ namespace Jellyfin.Plugin.GetAvatar
             yield return new PluginPageInfo
             {
                 Name = this.Name,
-                EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.Web.configPage.html"
+                EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.Web.configPage.html",
+                DisplayName = "GetAvatar",
+                MenuSection = "server",
+                MenuIcon = "person",
+                EnableInMainMenu = true
             };
             yield return new PluginPageInfo
             {
