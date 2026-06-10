@@ -37,9 +37,13 @@ User profile page will have a new button "Choose from Gallery".
 
 <img width="3504" height="2092" alt="Screenshot 2026-06-09 at 19-03-12 cedev" src="https://github.com/user-attachments/assets/2bff3177-d2f9-490f-8e7d-fb56c10db5ef" />
 
-## Avatar Example
+## Avatar
 
-For example, you can import this [Netflix avatar pack](https://imgur.com/gallery/netflix-all-profile-icons-ToZ21Gg)
+You can import avatar packs from the repository [jellyfin-avatars](https://github.com/cedev-1/jellyfin-avatars).
+
+<img width="436" height="337" alt="image" src="https://github.com/user-attachments/assets/baa16380-6fd1-4d7e-9ef0-026ed04f6572" />
+
+For example, you can import this [Netflix avatar pack](https://imgur.com/gallery/netflix-all-profile-icons-ToZ21Gg).
 
 ## Disclaimer
 
