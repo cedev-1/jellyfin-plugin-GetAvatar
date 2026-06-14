@@ -24,9 +24,10 @@
                         </button>
                         <h3 class="formDialogHeaderTitle">Choose Your Avatar</h3>
                     </div>
-                    <div class="formDialogContent scrollY" style="padding:2em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+                    <div class="formDialogContent scrollY" style="padding:2em;flex:1;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+                        <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;"></div>
                         <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;"></div>
-                        <div style="margin-top:2em;display:flex;justify-content:flex-end;gap:1em;">
+                        <div style="margin-top:2em;display:flex;justify-content:flex-end;gap:1em;flex-shrink:0;">
                             <button is="emby-button" id="cancelAvatarBtn" class="raised button-cancel">Cancel</button>
                             <button is="emby-button" id="applyAvatarBtn" class="raised button-submit" disabled>Set as My Avatar</button>
                         </div>
@@ -112,9 +113,14 @@
 
     function renderAvatars(list) {
         const container = document.getElementById('avatarGridContainer');
+        const categoryList = document.getElementById('avatarCategoryList');
 
         if (!list || list.length === 0) {
             container.innerHTML = '<p style="grid-column:1/-1;text-align:center;opacity:0.6;">No avatars available. Contact your administrator.</p>';
+            if (categoryList) {
+                categoryList.style.display = 'none';
+                categoryList.innerHTML = '';
+            }
             return;
         }
 
@@ -135,13 +141,42 @@
         var html = '';
         var hasMultipleCategories = categories.length > 1 || categories[0] !== '';
 
+        if (categoryList) {
+            if (hasMultipleCategories) {
+                var categoryHtml = '';
+                categories.forEach(function(category) {
+                    if (!category) return;
+                    var categoryId = 'avatar-category-' + category;
+                    categoryHtml += '<button class="category-link raised" data-target="' + escapeHtml(categoryId) + '" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:0.4em 0.9em;color:inherit;cursor:pointer;transition:all 0.2s;font-size:0.85em;white-space:nowrap;">' + escapeHtml(category) + '</button>';
+                });
+                categoryList.innerHTML = categoryHtml;
+                categoryList.style.display = 'flex';
+
+                categoryList.querySelectorAll('.category-link').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var targetId = this.getAttribute('data-target');
+                        var target = document.getElementById(targetId);
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                });
+            } else {
+                categoryList.style.display = 'none';
+                categoryList.innerHTML = '';
+            }
+        }
+
         categories.forEach(function(category) {
             var categoryAvatars = grouped[category];
+            var categoryId = 'avatar-category-' + (category || 'uncategorized');
 
             if (hasMultipleCategories && category) {
-                html += '<div style="grid-column:1/-1;margin-top:1em;margin-bottom:0.3em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">';
+                html += '<div id="' + escapeHtml(categoryId) + '" style="grid-column:1/-1;margin-top:1em;margin-bottom:0.3em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">';
                 html += '<h3 style="margin:0;font-size:1em;font-weight:600;">' + escapeHtml(category) + '</h3>';
                 html += '</div>';
+            } else if (hasMultipleCategories) {
+                html += '<div id="' + escapeHtml(categoryId) + '" style="grid-column:1/-1;"></div>';
             }
 
             categoryAvatars.forEach(function(avatar) {
