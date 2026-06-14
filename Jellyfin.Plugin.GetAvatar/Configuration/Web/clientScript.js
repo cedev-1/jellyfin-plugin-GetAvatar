@@ -24,10 +24,10 @@
                         </button>
                         <h3 class="formDialogHeaderTitle">Choose Your Avatar</h3>
                     </div>
-                    <div class="formDialogContent scrollY" style="padding:2em;flex:1;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-                        <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;"></div>
-                        <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;"></div>
-                        <div style="margin-top:2em;display:flex;justify-content:flex-end;gap:1em;flex-shrink:0;">
+                    <div class="formDialogContent" style="padding:2em;flex:1;display:flex;flex-direction:column;min-height:0;">
+                        <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;flex-shrink:0;"></div>
+                        <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-right:0.5em;"></div>
+                        <div style="display:flex;justify-content:flex-end;gap:1em;flex-shrink:0;padding-top:1.5em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
                             <button is="emby-button" id="cancelAvatarBtn" class="raised button-cancel">Cancel</button>
                             <button is="emby-button" id="applyAvatarBtn" class="raised button-submit" disabled>Set as My Avatar</button>
                         </div>
