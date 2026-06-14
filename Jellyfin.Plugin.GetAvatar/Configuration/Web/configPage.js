@@ -11,6 +11,47 @@ const getAvatarCss = `
 }
 .avatar-list-header h3 { margin: 0; font-size: 1em; }
 .avatar-count { font-size: 0.85em; opacity: 0.5; }
+.avatar-links-section {
+    margin-bottom: 1.5em;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 1em 1.2em;
+}
+.avatar-links-text {
+    margin: 0 0 0.8em;
+    opacity: 0.85;
+    font-size: 0.95em;
+}
+.avatar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75em;
+}
+.avatar-link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    text-decoration: none;
+    color: inherit;
+    padding: 0.4em 0.8em;
+    border-radius: 4px;
+    transition: opacity 0.15s, background 0.15s;
+}
+.avatar-link-button:hover {
+    opacity: 0.85;
+    background: rgba(255,255,255,0.07);
+}
+.avatar-link-button:active {
+    opacity: 0.65;
+}
+.avatar-link-button .material-icons,
+.avatar-link-icon {
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
 .empty-state, .loading-state {
     text-align: center;
     padding: 2em;
