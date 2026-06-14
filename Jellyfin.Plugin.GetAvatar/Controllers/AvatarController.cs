@@ -506,7 +506,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// <summary>
         /// Gets all users, compatible with both Jellyfin ≤10.11.8 (Users property)
         /// and Jellyfin ≥10.11.9 (GetUsers() method).
-        /// See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9
+        /// See the changelog for release 10.11.9: https://github.com/jellyfin/jellyfin/compare/v10.11.8...v10.11.9.
         /// </summary>
         private IEnumerable<Jellyfin.Database.Implementations.Entities.User> GetAllUsers()
         {
