@@ -27,9 +27,15 @@
                     <div class="formDialogContent" style="padding:2em;flex:1;display:flex;flex-direction:column;min-height:0;">
                         <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;flex-shrink:0;"></div>
                         <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-right:0.5em;"></div>
-                        <div style="display:flex;justify-content:flex-end;gap:1em;flex-shrink:0;padding-top:1.5em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
-                            <button is="emby-button" id="cancelAvatarBtn" class="raised button-cancel">Cancel</button>
-                            <button is="emby-button" id="applyAvatarBtn" class="raised button-submit" disabled>Set as My Avatar</button>
+                        <div style="display:flex;justify-content:space-between;gap:1em;flex-shrink:0;padding-top:1.5em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
+                            <button is="emby-button" id="randomAvatarBtn" class="raised button-alt" style="display:flex;align-items:center;gap:0.4em;">
+                                <span class="material-icons shuffle" style="margin:0;"></span>
+                                <span>Random</span>
+                            </button>
+                            <div style="display:flex;justify-content:flex-end;gap:1em;">
+                                <button is="emby-button" id="cancelAvatarBtn" class="raised button-cancel">Cancel</button>
+                                <button is="emby-button" id="applyAvatarBtn" class="raised button-submit" disabled>Set as My Avatar</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -40,6 +46,7 @@
         modal.querySelector('.btnCancel').onclick = closeModal;
         modal.querySelector('#cancelAvatarBtn').onclick = closeModal;
         modal.querySelector('#applyAvatarBtn').onclick = applyAvatar;
+        modal.querySelector('#randomAvatarBtn').onclick = applyRandomAvatar;
         modal.querySelector('.dialogContainer').onclick = function(e) {
             if (e.target === this) closeModal();
         };
@@ -207,54 +214,97 @@
         });
     }
 
+    function refreshProfileImages(successMessage) {
+        try { Dashboard.alert({ message: successMessage, title: 'Success' }); } catch (e) { console.warn('GetAvatar: Dashboard.alert error (success)', e); }
+
+        try {
+            const timestamp = Date.now();
+            document.querySelectorAll('img').forEach(img => {
+                const src = img.src || '';
+                if (src.includes('/Users/') && src.includes('/Images/')) {
+                    const baseUrl = src.split('?')[0];
+                    img.src = baseUrl + '?t=' + timestamp;
+                }
+            });
+            setTimeout(() => { location.reload(); }, 800);
+        } catch (e) {
+            console.warn('GetAvatar: image refresh error', e);
+        }
+    }
+
     async function applyAvatar() {
-         if (!selectedAvatarId) return;
+        if (!selectedAvatarId) return;
 
-         const btn = document.getElementById('applyAvatarBtn');
-         btn.disabled = true;
-         btn.textContent = 'Applying...';
+        const btn = document.getElementById('applyAvatarBtn');
+        btn.disabled = true;
+        btn.textContent = 'Applying...';
 
-         try {
-             const requestBody = { avatarId: selectedAvatarId };
-             if (targetUserId) {
-                 requestBody.userId = targetUserId;
-             }
+        try {
+            const requestBody = { avatarId: selectedAvatarId };
+            if (targetUserId) {
+                requestBody.userId = targetUserId;
+            }
 
-             const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'), {
-                 method: 'POST',
-                 headers: {
-                     'Content-Type': 'application/json',
-                     'X-Emby-Token': ApiClient.accessToken()
-                 },
-                 body: JSON.stringify(requestBody)
-             });
+            const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Emby-Token': ApiClient.accessToken()
+                },
+                body: JSON.stringify(requestBody)
+            });
 
             if (!response.ok) {
                 throw new Error('HTTP ' + response.status);
             }
 
             closeModal();
-
-            try { Dashboard.alert({ message: 'Avatar updated!', title: 'Success' }); } catch (e) { console.warn('GetAvatar: Dashboard.alert error (success)', e); }
-
-            try {
-                const timestamp = Date.now();
-                document.querySelectorAll('img').forEach(img => {
-                    const src = img.src || '';
-                    if (src.includes('/Users/') && src.includes('/Images/')) {
-                        const baseUrl = src.split('?')[0];
-                        img.src = baseUrl + '?t=' + timestamp;
-                    }
-                });
-                setTimeout(() => { location.reload(); }, 800);
-            } catch (e) {
-                console.warn('GetAvatar: image refresh error', e);
-            }
+            refreshProfileImages('Avatar updated!');
         } catch (error) {
             console.error('GetAvatar: Failed to set avatar', error.name + ': ' + error.message, error.stack);
             try { Dashboard.alert({ message: 'Failed to set avatar: ' + error.message, title: 'Error' }); } catch (e) { alert('Failed to set avatar: ' + error.message); }
             btn.disabled = false;
             btn.textContent = 'Set as My Avatar';
+        }
+    }
+
+    async function applyRandomAvatar() {
+        if (!avatars || avatars.length === 0) {
+            try { Dashboard.alert({ message: 'No avatars available.', title: 'Error' }); } catch (e) { alert('No avatars available.'); }
+            return;
+        }
+
+        const btn = document.getElementById('randomAvatarBtn');
+        btn.disabled = true;
+
+        try {
+            const randomIndex = Math.floor(Math.random() * avatars.length);
+            const randomAvatar = avatars[randomIndex];
+
+            const requestBody = { avatarId: randomAvatar.Id || randomAvatar.id };
+            if (targetUserId) {
+                requestBody.userId = targetUserId;
+            }
+
+            const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Emby-Token': ApiClient.accessToken()
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            closeModal();
+            refreshProfileImages('Random avatar applied!');
+        } catch (error) {
+            console.error('GetAvatar: Failed to apply random avatar', error);
+            try { Dashboard.alert({ message: 'Failed to apply random avatar: ' + error.message, title: 'Error' }); } catch (e) { alert('Failed to apply random avatar: ' + error.message); }
+            btn.disabled = false;
         }
     }
 
