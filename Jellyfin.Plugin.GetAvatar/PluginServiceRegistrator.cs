@@ -15,7 +15,9 @@ namespace Jellyfin.Plugin.GetAvatar
         /// <inheritdoc />
         public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
         {
+            serviceCollection.AddHttpClient();
             serviceCollection.AddSingleton<AvatarService>();
+            serviceCollection.AddSingleton<OnlinePackService>();
             serviceCollection.AddSingleton<IStartupFilter, ScriptInjectorStartup>();
             serviceCollection.AddHostedService<AvatarValidationService>();
         }

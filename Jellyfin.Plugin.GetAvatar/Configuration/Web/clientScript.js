@@ -17,7 +17,7 @@
         modal.id = CONFIG.modalId;
         modal.innerHTML = `
             <div class="dialogContainer" style="display:none;">
-                <div class="focuscontainer dialog dialog-fixedSize dialog-medium-tall" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="focuscontainer dialog dialog-fixedSize dialog-medium-tall" style="width:900px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
                     <div class="formDialogHeader">
                         <button is="paper-icon-button-light" class="btnCancel autoSize" title="Close">
                             <span class="material-icons close"></span>

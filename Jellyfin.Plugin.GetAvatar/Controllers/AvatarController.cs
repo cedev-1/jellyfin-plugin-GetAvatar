@@ -24,6 +24,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
     public class AvatarController : ControllerBase
     {
         private readonly AvatarService _avatarService;
+        private readonly OnlinePackService _onlinePackService;
         private readonly IUserManager _userManager;
         private readonly ILogger<AvatarController> _logger;
 
@@ -31,14 +32,17 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// Initializes a new instance of the <see cref="AvatarController"/> class.
         /// </summary>
         /// <param name="avatarService">The avatar service.</param>
+        /// <param name="onlinePackService">The online pack service.</param>
         /// <param name="userManager">The user manager.</param>
         /// <param name="logger">The logger instance.</param>
         public AvatarController(
             AvatarService avatarService,
+            OnlinePackService onlinePackService,
             IUserManager userManager,
             ILogger<AvatarController> logger)
         {
             _avatarService = avatarService;
+            _onlinePackService = onlinePackService;
             _userManager = userManager;
             _logger = logger;
         }
@@ -501,6 +505,72 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             Plugin.Instance.SaveConfiguration();
 
             return Ok(new { message = "Settings saved" });
+        }
+
+        /// <summary>
+        /// Gets the available online avatar packs from the latest GitHub release.
+        /// </summary>
+        /// <returns>List of available packs.</returns>
+        [HttpGet("OnlinePacks")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> GetOnlinePacks()
+        {
+            try
+            {
+                var packs = await _onlinePackService.GetAvailablePacksAsync().ConfigureAwait(false);
+                return Ok(packs.Select(p => new
+                {
+                    id = p.Id,
+                    name = p.Name,
+                    fileName = p.FileName,
+                    downloadUrl = p.DownloadUrl,
+                    size = p.Size
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get online avatar packs");
+                return StatusCode(500, "Failed to retrieve online avatar packs");
+            }
+        }
+
+        /// <summary>
+        /// Imports the selected online avatar packs.
+        /// </summary>
+        /// <param name="request">The request containing the pack identifiers.</param>
+        /// <returns>Import result.</returns>
+        [HttpPost("ImportOnlinePacks")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> ImportOnlinePacks([FromBody] ImportOnlinePacksRequest request)
+        {
+            try
+            {
+                if (request.PackIds == null || request.PackIds.Count == 0)
+                {
+                    return BadRequest("No packs selected");
+                }
+
+                var result = await _onlinePackService.ImportPacksAsync(request.PackIds).ConfigureAwait(false);
+                return Ok(new
+                {
+                    importedCount = result.ImportedCount,
+                    totalImages = result.TotalImages,
+                    duplicateCount = result.DuplicateCount,
+                    packResults = result.PackResults.Select(r => new
+                    {
+                        r.PackId,
+                        r.PackName,
+                        r.ImportedCount,
+                        r.Success,
+                        r.ErrorMessage
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to import online avatar packs");
+                return StatusCode(500, "Failed to import online avatar packs");
+            }
         }
 
         /// <summary>

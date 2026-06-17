@@ -45,12 +45,8 @@ const getAvatarCss = `
 .avatar-link-button:active {
     opacity: 0.65;
 }
-.avatar-link-button .material-icons,
-.avatar-link-icon {
-    width: 1.1em;
-    height: 1.1em;
+.avatar-link-button .material-icons {
     font-size: 1.1em;
-    flex-shrink: 0;
 }
 .empty-state, .loading-state {
     text-align: center;
@@ -305,6 +301,70 @@ const getAvatarCss = `
 #avatarFileInput,
 #avatarFolderInput {
     display: none;
+}
+.download-online-pack-button {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    color: inherit !important;
+}
+.download-online-pack-button:hover {
+    opacity: 0.85;
+    background: rgba(255,255,255,0.07) !important;
+}
+.download-online-pack-button:active {
+    opacity: 0.65;
+}
+.online-pack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+.online-pack-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.7em 0.8em;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.online-pack-item:hover {
+    background: rgba(255,255,255,0.08);
+}
+.online-pack-item input[type="checkbox"] {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.online-pack-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.online-pack-name {
+    font-weight: 500;
+    font-size: 0.95em;
+}
+.online-pack-size {
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+.online-pack-empty,
+.online-pack-error {
+    text-align: center;
+    padding: 2em;
+    opacity: 0.6;
+}
+.online-pack-error {
+    color: #e57373;
+    opacity: 1;
+}
+#onlinePackDialog .dialogContainer {
+    animation: none;
 }
 `;
 
@@ -709,6 +769,217 @@ export default function (view) {
 
   uploadButton.addEventListener("click", uploadAvatar);
   enableAutoAssignSwitch.addEventListener("change", saveSettings);
+
+  const downloadOnlinePackButton = view.querySelector("#downloadOnlinePackButton");
+  const onlinePackDialog = view.querySelector("#onlinePackDialog");
+  const onlinePackList = view.querySelector("#onlinePackList");
+  const onlinePackResult = view.querySelector("#onlinePackResult");
+  const importOnlinePacksButton = view.querySelector("#importOnlinePacksButton");
+  const importAllOnlinePacksButton = view.querySelector("#importAllOnlinePacksButton");
+  const closeOnlinePackDialogButton = view.querySelector("#closeOnlinePackDialog");
+  const cancelOnlinePackDialog = view.querySelector("#cancelOnlinePackDialog");
+
+  let onlinePacks = [];
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  function openOnlinePackDialog() {
+    if (onlinePackDialog) {
+      onlinePackDialog.style.display = "block";
+    }
+    if (onlinePackResult) {
+      onlinePackResult.style.display = "none";
+      onlinePackResult.textContent = "";
+    }
+    loadOnlinePacks();
+  }
+
+  function closeOnlinePackDialogFn() {
+    if (onlinePackDialog) {
+      onlinePackDialog.style.display = "none";
+    }
+    onlinePacks = [];
+    if (onlinePackList) {
+      onlinePackList.innerHTML = "";
+    }
+    if (importOnlinePacksButton) {
+      importOnlinePacksButton.disabled = true;
+      importOnlinePacksButton.textContent = "Import Selected";
+    }
+  }
+
+  function loadOnlinePacks() {
+    if (!onlinePackList || !importOnlinePacksButton) return;
+
+    onlinePackList.innerHTML = '<div class="loading-state">Loading packs...</div>';
+    importOnlinePacksButton.disabled = true;
+
+    ApiClient.fetch({
+      url: ApiClient.getUrl("/GetAvatar/OnlinePacks"),
+      type: "GET",
+      dataType: "json",
+    })
+      .then(function (packs) {
+        onlinePacks = packs || [];
+        renderOnlinePacks();
+      })
+      .catch(function (error) {
+        console.error("GetAvatar: Failed to load online packs", error);
+        onlinePackList.innerHTML = '<div class="online-pack-error">Failed to load online packs. Please try again later.</div>';
+      });
+  }
+
+  function renderOnlinePacks() {
+    if (!onlinePackList) return;
+
+    if (!onlinePacks || onlinePacks.length === 0) {
+      onlinePackList.innerHTML = '<div class="online-pack-empty">No online packs available.</div>';
+      return;
+    }
+
+    let html = '<div class="online-pack-list">';
+    onlinePacks.forEach(function (pack) {
+      const id = pack.Id || pack.id || "";
+      const name = pack.Name || pack.name || "";
+      const size = formatBytes(pack.Size || pack.size || 0);
+      html += `
+        <label class="online-pack-item">
+          <input type="checkbox" value="${escapeHtml(id)}" />
+          <div class="online-pack-info">
+            <span class="online-pack-name">${escapeHtml(name)}</span>
+            <span class="online-pack-size">${escapeHtml(size)}</span>
+          </div>
+        </label>
+      `;
+    });
+    html += '</div>';
+
+    onlinePackList.innerHTML = html;
+    updateImportButton();
+
+    onlinePackList.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+      checkbox.addEventListener("change", updateImportButton);
+    });
+  }
+
+  function updateImportButton() {
+    if (!onlinePackList || !importOnlinePacksButton) return;
+    const checked = onlinePackList.querySelectorAll('input[type="checkbox"]:checked');
+    importOnlinePacksButton.disabled = checked.length === 0;
+  }
+
+  async function importOnlinePacks() {
+    if (!onlinePackList || !importOnlinePacksButton || !onlinePackResult) return;
+
+    const checked = onlinePackList.querySelectorAll('input[type="checkbox"]:checked');
+    const packIds = Array.from(checked).map(function (cb) { return cb.value; });
+
+    if (packIds.length === 0) return;
+
+    importOnlinePacksButton.disabled = true;
+    importOnlinePacksButton.textContent = "Importing...";
+
+    try {
+      const response = await fetch(ApiClient.getUrl("/GetAvatar/ImportOnlinePacks"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Emby-Token": ApiClient.accessToken(),
+        },
+        body: JSON.stringify({ packs: packIds }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Import failed");
+      }
+
+      const result = await response.json();
+      const imported = result.importedCount || 0;
+      const total = result.totalImages || 0;
+      const duplicates = result.duplicateCount || 0;
+
+      onlinePackResult.style.display = "block";
+
+      if (imported > 0) {
+        onlinePackResult.style.background = "rgba(82, 181, 75, 0.1)";
+        onlinePackResult.textContent = "Successfully imported " + imported + " avatar(s).";
+      } else if (total > 0 && duplicates === total) {
+        onlinePackResult.style.background = "rgba(255, 255, 255, 0.1)";
+        onlinePackResult.textContent = "All " + total + " avatar(s) are already imported.";
+      } else {
+        onlinePackResult.style.background = "rgba(255, 193, 7, 0.1)";
+        onlinePackResult.textContent = "No new avatars to import.";
+      }
+
+      loadAvatars();
+
+      setTimeout(function () {
+        closeOnlinePackDialogFn();
+      }, 1500);
+    } catch (error) {
+      console.error("GetAvatar: Failed to import online packs", error);
+      onlinePackResult.style.display = "block";
+      onlinePackResult.style.background = "rgba(229, 57, 53, 0.1)";
+      onlinePackResult.textContent = "Import failed: " + error.message;
+    } finally {
+      importOnlinePacksButton.disabled = false;
+      importOnlinePacksButton.textContent = "Import Selected";
+      updateImportButton();
+    }
+  }
+
+  async function importAllOnlinePacks() {
+    if (!onlinePackList || !importOnlinePacksButton) return;
+
+    const checkboxes = onlinePackList.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(function (cb) {
+      cb.checked = true;
+    });
+    updateImportButton();
+
+    await importOnlinePacks();
+  }
+
+  if (downloadOnlinePackButton) {
+    downloadOnlinePackButton.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openOnlinePackDialog();
+    });
+  }
+
+  // Fallback: delegate click in case Jellyfin replaces the button element
+  view.addEventListener("click", function(e) {
+    var btn = e.target.closest("#downloadOnlinePackButton");
+    if (btn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openOnlinePackDialog();
+    }
+  });
+  if (closeOnlinePackDialogButton) {
+    closeOnlinePackDialogButton.addEventListener("click", closeOnlinePackDialogFn);
+  }
+  if (cancelOnlinePackDialog) {
+    cancelOnlinePackDialog.addEventListener("click", closeOnlinePackDialogFn);
+  }
+  if (importOnlinePacksButton) {
+    importOnlinePacksButton.addEventListener("click", importOnlinePacks);
+  }
+  if (importAllOnlinePacksButton) {
+    importAllOnlinePacksButton.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      importAllOnlinePacks();
+    });
+  }
 
   view.addEventListener("viewshow", function () {
     loadSettings();
