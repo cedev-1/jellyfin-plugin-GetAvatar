@@ -80,15 +80,17 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 _logger.LogInformation("GetAvatars endpoint called");
                 var avatars = _avatarService.GetAvailableAvatars();
                 _logger.LogInformation("Retrieved {Count} avatars", avatars.Count);
-                return Ok(avatars.Select(a => new
-                {
-                    a.Id,
-                    a.Name,
-                    a.FileName,
-                    a.DateAdded,
-                    a.Category,
-                    Url = $"/GetAvatar/Image/{a.Id}"
-                }));
+                return Ok(avatars
+                    .Where(a => a != null)
+                    .Select(a => new
+                    {
+                        a.Id,
+                        a.Name,
+                        a.FileName,
+                        a.DateAdded,
+                        Category = a.Category ?? string.Empty,
+                        Url = $"/GetAvatar/Image/{a.Id}"
+                    }));
             }
             catch (Exception ex)
             {
@@ -177,7 +179,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     avatarInfo.Name,
                     avatarInfo.FileName,
                     avatarInfo.DateAdded,
-                    avatarInfo.Category,
+                    Category = avatarInfo.Category ?? string.Empty,
                     Url = $"/GetAvatar/Image/{avatarInfo.Id}"
                 });
             }
