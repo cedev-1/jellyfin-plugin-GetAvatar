@@ -110,8 +110,18 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 return new List<AvatarInfo>();
             }
 
-            _logger.LogInformation("Returning {Count} avatars from configuration", config.AvailableAvatars?.Count ?? 0);
-            return config.AvailableAvatars ?? new List<AvatarInfo>();
+            var avatars = config.AvailableAvatars ?? new List<AvatarInfo>();
+
+            // Clean up null entries from corrupted config
+            var removed = avatars.RemoveAll(a => a == null);
+            if (removed > 0)
+            {
+                _logger.LogWarning("Removed {Count} null avatar entries from configuration", removed);
+                Plugin.Instance.SaveConfiguration();
+            }
+
+            _logger.LogInformation("Returning {Count} avatars from configuration", avatars.Count);
+            return avatars;
         }
 
         /// <summary>
@@ -182,7 +192,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 }
 
                 var config = Plugin.Config;
-                var avatar = config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
+                var avatar = config.AvailableAvatars?.FirstOrDefault(a => a != null && a.Id == avatarId);
 
                 if (avatar == null)
                 {
@@ -240,7 +250,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 return null;
             }
 
-            var avatar = Plugin.Config.AvailableAvatars?.FirstOrDefault(a => a.Id == avatarId);
+            var avatar = Plugin.Config.AvailableAvatars?.FirstOrDefault(a => a != null && a.Id == avatarId);
             if (avatar == null)
             {
                 return null;
