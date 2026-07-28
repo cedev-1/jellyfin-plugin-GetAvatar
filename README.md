@@ -23,12 +23,6 @@ https://raw.githubusercontent.com/cedev-1/Jellyfin-Plugin-GetAvatar/master/manif
 
 3. On the Catalog page click on Install.
 
-## Plugin Configuration
-
-You just have to add avatar images, click on "Choose file" and "Upload". The image will be added to the collection of images. You can also remove images by clicking on the cross icon.
-
-<img width="1744" height="1042" alt="image" src="https://github.com/user-attachments/assets/7b076ecf-8415-4d65-b65c-7b248bac2536" />
-
 ## User View
 
 User profile page will have a new button "Choose from Gallery".
@@ -36,6 +30,12 @@ User profile page will have a new button "Choose from Gallery".
 <img width="3504" height="2092" alt="Screenshot 2026-06-09 at 19-03-44 cedev" src="https://github.com/user-attachments/assets/7f70202e-8f59-4a90-96f6-c0ebeef78615" />
 
 <img width="1742" height="1040" alt="image" src="https://github.com/user-attachments/assets/64dd4f8f-3062-4dd4-bed0-1ff8de069958" />
+
+## Plugin Configuration
+
+You just have to add avatar images, click on "Choose file" and "Upload". The image will be added to the collection of images. You can also remove images by clicking on the cross icon.
+
+<img width="1744" height="1042" alt="image" src="https://github.com/user-attachments/assets/7b076ecf-8415-4d65-b65c-7b248bac2536" />
 
 ## Avatar
 
