@@ -538,13 +538,17 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 {
                     try
                     {
-                        var userDataPath = Path.Combine(_appPaths.DataPath, "users", user.Id.ToString("N"));
+                        // Must match the layout written by SetUserAvatarAsync:
+                        // <UserConfigurationDirectoryPath>/<username>/profile<ext>
+                        var userDataPath = Path.Combine(
+                            _serverConfigurationManager.ApplicationPaths.UserConfigurationDirectoryPath,
+                            user.Username);
                         if (!Directory.Exists(userDataPath))
                         {
                             continue;
                         }
 
-                        var profileFiles = Directory.GetFiles(userDataPath, "profile_*");
+                        var profileFiles = Directory.GetFiles(userDataPath, "profile.*");
                         var currentProfilePath = user.ProfileImage?.Path;
 
                         foreach (var file in profileFiles)
