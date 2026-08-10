@@ -56,6 +56,8 @@ It may have some bugs. If you find any bug, please open an [issue](https://githu
 
 It is possible that on already active sessions the button is not displayed on the profile. You can clear your browser cache.
 
+Possible problem with custom Jellyfin themes. Open an [issue](https://github.com/cedev-1/jellyfin-plugin-GetAvatar/issues) if needed.
+
 ## License
 
 [MIT](./LICENSE)
