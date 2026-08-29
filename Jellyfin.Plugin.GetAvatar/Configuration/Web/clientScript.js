@@ -92,7 +92,7 @@
         try {
             const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/Avatars'), {
                 headers: {
-                    'X-Emby-Token': ApiClient.accessToken()
+                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
                 }
             });
 
@@ -249,7 +249,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Emby-Token': ApiClient.accessToken()
+                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
                 },
                 body: JSON.stringify(requestBody)
             });
@@ -290,7 +290,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Emby-Token': ApiClient.accessToken()
+                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
                 },
                 body: JSON.stringify(requestBody)
             });

@@ -629,7 +629,7 @@ export default function (view) {
       try {
         const response = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "X-Emby-Token": ApiClient.accessToken() },
+          headers: { "Authorization": 'MediaBrowser Token="' + ApiClient.accessToken() + '"' },
           body: formData,
         });
 
@@ -890,7 +890,7 @@ export default function (view) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Emby-Token": ApiClient.accessToken(),
+          "Authorization": 'MediaBrowser Token="' + ApiClient.accessToken() + '"',
         },
         body: JSON.stringify({ packs: packIds }),
       });

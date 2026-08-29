@@ -120,7 +120,7 @@
 
         function loadAvatars() {
             fetch(ApiClient.getUrl('/GetAvatar/Avatars'), {
-                headers: { 'X-Emby-Token': ApiClient.accessToken() }
+                headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' }
             })
             .then(response => response.json())
             .then(avatars => renderAvatars(avatars))
@@ -222,7 +222,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Emby-Token': ApiClient.accessToken()
+                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
                 },
                 body: JSON.stringify({ avatarId: selectedAvatarId })
             })
