@@ -85,6 +85,28 @@
               This applies to all users without an avatar — existing avatar choices are never overwritten.
             </span></span>
           </div>
+          <div class="feature-toggle-row">
+            <span class="feature-toggle-label-text">Assign an avatar when a user is created</span>
+            <label class="switch">
+              <input type="checkbox" id="enableAssignOnCreation" />
+              <span class="switch-slider"></span>
+            </label>
+            <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+              <strong>Assign on user creation</strong><br>
+              When enabled, every newly created user immediately receives a random avatar from the pool.<br><br>
+              This is independent from the startup option above. Existing users are never modified.
+            </span></span>
+          </div>
+          <div class="feature-toggle-row">
+            <button id="assignMissingButton" is="emby-button" type="button" class="raised button-alt assign-missing-button">
+              Assign missing avatars now
+            </button>
+            <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+              <strong>Assign missing avatars</strong><br>
+              Immediately gives a random avatar to every user who does not have one.<br><br>
+              Unlike the toggle above, this runs on demand and works even when automatic assignment is disabled.
+            </span></span>
+          </div>
         </div>
 
         <div class="verticalSection">

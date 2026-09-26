@@ -405,6 +405,34 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         }
 
         /// <summary>
+        /// Assigns a random avatar to every user who does not have one (admin only).
+        /// Unlike the startup validation, this ignores the EnableAutoAssign setting so it can be
+        /// triggered on demand from a script, an API key or the Webhook plugin.
+        /// </summary>
+        /// <returns>The number of users who received an avatar.</returns>
+        [HttpPost("AssignMissing")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> AssignMissingAvatars()
+        {
+            try
+            {
+                _logger.LogInformation("Starting missing avatar assignment (manual trigger)");
+                var assignedCount = await _avatarService.AssignMissingAvatarsAsync(force: true).ConfigureAwait(false);
+
+                return Ok(new
+                {
+                    message = "Missing avatars assigned",
+                    assignedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to assign missing avatars");
+                return StatusCode(500, "Failed to assign missing avatars");
+            }
+        }
+
+        /// <summary>
         /// Cleans up orphaned profile image files (admin only).
         /// This removes old profile images that are no longer referenced.
         /// </summary>
@@ -485,7 +513,11 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         [Authorize(Policy = "RequiresElevation")]
         public IActionResult GetSettings()
         {
-            return Ok(new { enableAutoAssign = Plugin.Config.EnableAutoAssign });
+            return Ok(new
+            {
+                enableAutoAssign = Plugin.Config.EnableAutoAssign,
+                enableAssignOnUserCreation = Plugin.Config.EnableAssignOnUserCreation
+            });
         }
 
         /// <summary>
@@ -504,6 +536,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
 
             var config = Plugin.Config;
             config.EnableAutoAssign = request.EnableAutoAssign;
+            config.EnableAssignOnUserCreation = request.EnableAssignOnUserCreation;
             Plugin.Instance.SaveConfiguration();
 
             return Ok(new { message = "Settings saved" });

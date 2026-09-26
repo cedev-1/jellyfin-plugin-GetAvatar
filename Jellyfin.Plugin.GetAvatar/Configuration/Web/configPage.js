@@ -226,6 +226,16 @@ const getAvatarCss = `
     font-size: 0.95em;
     font-weight: 500;
 }
+.assign-missing-button {
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.35em 0.9em !important;
+    font-size: 0.85em !important;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+
 .switch {
     position: relative;
     display: inline-block;
@@ -395,6 +405,8 @@ export default function (view) {
   const selectedFileDiv = view.querySelector("#selectedFile");
   const fileNameSpan = view.querySelector("#fileName");
   const enableAutoAssignSwitch = view.querySelector("#enableAutoAssign");
+  const enableAssignOnCreationSwitch = view.querySelector("#enableAssignOnCreation");
+  const assignMissingButton = view.querySelector("#assignMissingButton");
 
   let selectedFiles = [];
 
@@ -406,6 +418,7 @@ export default function (view) {
     })
       .then(function (settings) {
         enableAutoAssignSwitch.checked = settings.enableAutoAssign;
+        enableAssignOnCreationSwitch.checked = settings.enableAssignOnUserCreation;
       })
       .catch(function (error) {
         console.error("GetAvatar: Failed to load settings", error);
@@ -417,7 +430,10 @@ export default function (view) {
       url: ApiClient.getUrl("/GetAvatar/Settings"),
       type: "POST",
       contentType: "application/json",
-      data: JSON.stringify({ enableAutoAssign: enableAutoAssignSwitch.checked }),
+      data: JSON.stringify({
+        enableAutoAssign: enableAutoAssignSwitch.checked,
+        enableAssignOnUserCreation: enableAssignOnCreationSwitch.checked,
+      }),
     })
       .then(function () {
         Dashboard.alert({ message: "Settings saved.", title: "Success" });
@@ -426,6 +442,42 @@ export default function (view) {
         console.error("GetAvatar: Failed to save settings", error);
         Dashboard.alert({ message: "Failed to save settings.", title: "Error" });
       });
+  }
+
+  async function assignMissingAvatars() {
+    if (assignMissingButton) {
+      assignMissingButton.disabled = true;
+    }
+    Dashboard.showLoadingMsg();
+
+    try {
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/AssignMissing"),
+        type: "POST",
+        dataType: "json",
+      });
+
+      const count = (result && result.assignedCount) || 0;
+      Dashboard.hideLoadingMsg();
+      Dashboard.alert({
+        message:
+          count === 0
+            ? "No user was missing an avatar."
+            : count + " user(s) received a random avatar.",
+        title: "Success",
+      });
+    } catch (error) {
+      console.error("GetAvatar: Failed to assign missing avatars", error);
+      Dashboard.hideLoadingMsg();
+      Dashboard.alert({
+        message: "Failed to assign missing avatars.",
+        title: "Error",
+      });
+    } finally {
+      if (assignMissingButton) {
+        assignMissingButton.disabled = false;
+      }
+    }
   }
 
   function loadAvatars() {
@@ -769,6 +821,15 @@ export default function (view) {
 
   uploadButton.addEventListener("click", uploadAvatar);
   enableAutoAssignSwitch.addEventListener("change", saveSettings);
+  enableAssignOnCreationSwitch.addEventListener("change", saveSettings);
+
+  if (assignMissingButton) {
+    assignMissingButton.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      assignMissingAvatars();
+    });
+  }
 
   const downloadOnlinePackButton = view.querySelector("#downloadOnlinePackButton");
   const onlinePackDialog = view.querySelector("#onlinePackDialog");

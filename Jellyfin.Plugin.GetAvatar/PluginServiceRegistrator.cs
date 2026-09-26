@@ -1,5 +1,7 @@
+using Jellyfin.Data.Events.Users;
 using Jellyfin.Plugin.GetAvatar.Services;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +22,7 @@ namespace Jellyfin.Plugin.GetAvatar
             serviceCollection.AddSingleton<OnlinePackService>();
             serviceCollection.AddSingleton<IStartupFilter, ScriptInjectorStartup>();
             serviceCollection.AddHostedService<AvatarValidationService>();
+            serviceCollection.AddScoped<IEventConsumer<UserCreatedEventArgs>, UserCreatedAvatarConsumer>();
         }
     }
 }

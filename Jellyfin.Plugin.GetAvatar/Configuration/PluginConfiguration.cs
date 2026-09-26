@@ -15,6 +15,7 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         {
             AvailableAvatars = new List<AvatarInfo>();
             UserAvatars = new List<UserAvatarMapping>();
+            EnableAssignOnUserCreation = true;
         }
 
         /// <summary>
@@ -31,5 +32,10 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets a value indicating whether new users without an avatar automatically receive a random one at startup.
         /// </summary>
         public bool EnableAutoAssign { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether a newly created user immediately receives a random avatar.
+        /// </summary>
+        public bool EnableAssignOnUserCreation { get; set; }
     }
 }

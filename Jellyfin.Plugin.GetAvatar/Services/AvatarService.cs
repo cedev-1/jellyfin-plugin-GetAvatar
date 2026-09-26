@@ -605,8 +605,9 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <summary>
         /// Assigns a default or random avatar to all users who have no avatar set.
         /// </summary>
+        /// <param name="force">When true, assigns even if <see cref="PluginConfiguration.EnableAutoAssign"/> is disabled.</param>
         /// <returns>The number of users who received an avatar.</returns>
-        public async Task<int> AssignMissingAvatarsAsync()
+        public async Task<int> AssignMissingAvatarsAsync(bool force = false)
         {
             if (Plugin.Instance == null)
             {
@@ -619,40 +620,21 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 return 0;
             }
 
-            var config = Plugin.Config;
-
-            if (!config.EnableAutoAssign)
+            if (!force && !Plugin.Config.EnableAutoAssign)
             {
                 return 0;
             }
 
             var assignedCount = 0;
-            var users = GetAllUsers();
 
-            foreach (var user in users)
+            foreach (var user in GetAllUsers())
             {
                 try
                 {
-                    var hasProfileImage = user.ProfileImage != null
-                        && !string.IsNullOrEmpty(user.ProfileImage.Path)
-                        && File.Exists(user.ProfileImage.Path);
-
-                    if (hasProfileImage)
+                    if (await AssignAvatarToUserIfMissingAsync(user.Id, force).ConfigureAwait(false))
                     {
-                        continue;
+                        assignedCount++;
                     }
-
-                    var target = GetRandomAvatar();
-                    if (target == null)
-                    {
-                        continue;
-                    }
-
-                    config.UserAvatars?.RemoveAll(x => x.UserId == user.Id.ToString());
-
-                    await SetUserAvatarAsync(user.Id, target.Id).ConfigureAwait(false);
-                    assignedCount++;
-                    _logger.LogInformation("Auto-assigned random avatar {AvatarId} to user {UserName}", target.Id, user.Username);
                 }
                 catch (Exception ex)
                 {
@@ -661,6 +643,62 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             }
 
             return assignedCount;
+        }
+
+        /// <summary>
+        /// Assigns a random avatar to a single user if that user has no valid profile image.
+        /// </summary>
+        /// <param name="userId">The user ID.</param>
+        /// <param name="force">When true, assigns even if <see cref="PluginConfiguration.EnableAutoAssign"/> is disabled.</param>
+        /// <returns>True if an avatar was assigned.</returns>
+        public async Task<bool> AssignAvatarToUserIfMissingAsync(Guid userId, bool force = false)
+        {
+            if (Plugin.Instance == null)
+            {
+                return false;
+            }
+
+            var config = Plugin.Config;
+
+            if (!force && !config.EnableAutoAssign)
+            {
+                return false;
+            }
+
+            var avatars = config.AvailableAvatars;
+            if (avatars == null || avatars.Count == 0)
+            {
+                return false;
+            }
+
+            var user = _userManager.GetUserById(userId);
+            if (user == null)
+            {
+                _logger.LogWarning("Cannot auto-assign avatar, user not found: {UserId}", userId);
+                return false;
+            }
+
+            var hasProfileImage = user.ProfileImage != null
+                && !string.IsNullOrEmpty(user.ProfileImage.Path)
+                && File.Exists(user.ProfileImage.Path);
+
+            if (hasProfileImage)
+            {
+                return false;
+            }
+
+            var target = GetRandomAvatar();
+            if (target == null)
+            {
+                return false;
+            }
+
+            config.UserAvatars?.RemoveAll(x => x.UserId == user.Id.ToString());
+
+            await SetUserAvatarAsync(user.Id, target.Id).ConfigureAwait(false);
+            _logger.LogInformation("Auto-assigned random avatar {AvatarId} to user {UserName}", target.Id, user.Username);
+
+            return true;
         }
 
         /// <summary>
