@@ -20,6 +20,7 @@ namespace Jellyfin.Plugin.GetAvatar
             serviceCollection.AddHttpClient();
             serviceCollection.AddSingleton<AvatarService>();
             serviceCollection.AddSingleton<OnlinePackService>();
+            serviceCollection.AddSingleton<GravatarService>();
             serviceCollection.AddSingleton<IStartupFilter, ScriptInjectorStartup>();
             serviceCollection.AddHostedService<AvatarValidationService>();
             serviceCollection.AddScoped<IEventConsumer<UserCreatedEventArgs>, UserCreatedAvatarConsumer>();

@@ -14,5 +14,11 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// Gets or sets a value indicating whether a newly created user immediately receives a random avatar.
         /// </summary>
         public bool EnableAssignOnUserCreation { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether users can import their Gravatar.
+        /// Left unchanged when omitted, so clients that don't know this setting don't turn it off.
+        /// </summary>
+        public bool? EnableGravatar { get; set; }
     }
 }

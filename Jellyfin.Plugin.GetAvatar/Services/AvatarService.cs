@@ -318,6 +318,34 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         }
 
         /// <summary>
+        /// Sets an image that is not part of the avatar pool (e.g. a Gravatar) as a user's profile image.
+        /// </summary>
+        /// <param name="userId">The user ID.</param>
+        /// <param name="image">The image data.</param>
+        /// <param name="extension">The image file extension, including the leading dot.</param>
+        /// <returns>Task representing the operation.</returns>
+        public async Task SetUserExternalAvatarAsync(Guid userId, Stream image, string extension)
+        {
+            var user = _userManager.GetUserById(userId);
+            if (user == null)
+            {
+                _logger.LogError("User not found: {UserId}", userId);
+                throw new ArgumentException($"User not found: {userId}");
+            }
+
+            await SaveProfileImageAsync(user, image, extension).ConfigureAwait(false);
+
+            // Drop any pool avatar mapping, otherwise ValidateUserAvatarsAsync would restore that avatar
+            // if the profile image ever went missing.
+            if (Plugin.Instance != null && Plugin.Config.UserAvatars?.RemoveAll(x => x.UserId == userId.ToString()) > 0)
+            {
+                Plugin.Instance.SaveConfiguration();
+            }
+
+            _logger.LogInformation("Successfully set external avatar for user {UserName} ({UserId})", user.Username, userId);
+        }
+
+        /// <summary>
         /// Saves an image as the user's Jellyfin profile image.
         /// This mirrors Jellyfin.Api.Controllers.ImageController.PostUserImage.
         /// </summary>

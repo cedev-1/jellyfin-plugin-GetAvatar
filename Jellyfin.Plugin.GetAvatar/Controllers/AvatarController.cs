@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Mail;
 using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -25,6 +27,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
     {
         private readonly AvatarService _avatarService;
         private readonly OnlinePackService _onlinePackService;
+        private readonly GravatarService _gravatarService;
         private readonly IUserManager _userManager;
         private readonly ILogger<AvatarController> _logger;
 
@@ -33,16 +36,19 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// </summary>
         /// <param name="avatarService">The avatar service.</param>
         /// <param name="onlinePackService">The online pack service.</param>
+        /// <param name="gravatarService">The Gravatar service.</param>
         /// <param name="userManager">The user manager.</param>
         /// <param name="logger">The logger instance.</param>
         public AvatarController(
             AvatarService avatarService,
             OnlinePackService onlinePackService,
+            GravatarService gravatarService,
             IUserManager userManager,
             ILogger<AvatarController> logger)
         {
             _avatarService = avatarService;
             _onlinePackService = onlinePackService;
+            _gravatarService = gravatarService;
             _userManager = userManager;
             _logger = logger;
         }
@@ -301,6 +307,80 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         }
 
         /// <summary>
+        /// Gets the optional features available to the current user.
+        /// </summary>
+        /// <returns>The enabled features.</returns>
+        [HttpGet("Features")]
+        public IActionResult GetFeatures()
+        {
+            return Ok(new
+            {
+                gravatarEnabled = Plugin.Instance != null && Plugin.Config.EnableGravatar
+            });
+        }
+
+        /// <summary>
+        /// Imports the Gravatar of an email address as a user's profile image.
+        /// The email address is only used to compute the Gravatar hash and is never stored or logged.
+        /// </summary>
+        /// <param name="request">The request containing the email address.</param>
+        /// <returns>Status of operation.</returns>
+        [HttpPost("Gravatar")]
+        public async Task<IActionResult> ImportGravatar([FromBody] GravatarRequest request)
+        {
+            try
+            {
+                if (Plugin.Instance == null || !Plugin.Config.EnableGravatar)
+                {
+                    return StatusCode(403, "Gravatar import is disabled");
+                }
+
+                // Reject display-name forms such as "Name <user@example.com>": the hash must be computed on the bare address
+                var email = request.Email?.Trim() ?? string.Empty;
+                if (!MailAddress.TryCreate(email, out var parsedEmail) || parsedEmail.Address != email)
+                {
+                    return BadRequest("A valid email address is required");
+                }
+
+                var accessError = ResolveTargetUser(request.UserId, out var targetUserId);
+                if (accessError != null)
+                {
+                    return accessError;
+                }
+
+                (byte[] Data, string Extension)? gravatar;
+                try
+                {
+                    gravatar = await _gravatarService.DownloadAvatarAsync(email).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is HttpRequestException or InvalidDataException or TaskCanceledException)
+                {
+                    _logger.LogWarning(ex, "Failed to download Gravatar for user {UserId}", targetUserId);
+                    return StatusCode(502, "Could not retrieve the Gravatar");
+                }
+
+                if (gravatar == null)
+                {
+                    return NotFound("No Gravatar found for this email");
+                }
+
+                using var image = new MemoryStream(gravatar.Value.Data);
+                await _avatarService.SetUserExternalAvatarAsync(targetUserId, image, gravatar.Value.Extension).ConfigureAwait(false);
+
+                return Ok(new { message = "Gravatar imported successfully" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to import Gravatar");
+                return StatusCode(500, "Failed to import Gravatar");
+            }
+        }
+
+        /// <summary>
         /// Removes the avatar from the current user (admin only).
         /// This clears the user's profile image without deleting the avatar from the pool.
         /// </summary>
@@ -471,7 +551,8 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             return Ok(new
             {
                 enableAutoAssign = Plugin.Config.EnableAutoAssign,
-                enableAssignOnUserCreation = Plugin.Config.EnableAssignOnUserCreation
+                enableAssignOnUserCreation = Plugin.Config.EnableAssignOnUserCreation,
+                enableGravatar = Plugin.Config.EnableGravatar
             });
         }
 
@@ -492,6 +573,11 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             var config = Plugin.Config;
             config.EnableAutoAssign = request.EnableAutoAssign;
             config.EnableAssignOnUserCreation = request.EnableAssignOnUserCreation;
+            if (request.EnableGravatar.HasValue)
+            {
+                config.EnableGravatar = request.EnableGravatar.Value;
+            }
+
             Plugin.Instance.SaveConfiguration();
 
             return Ok(new { message = "Settings saved" });

@@ -37,5 +37,10 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets a value indicating whether a newly created user immediately receives a random avatar.
         /// </summary>
         public bool EnableAssignOnUserCreation { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether users can import their Gravatar as profile image.
+        /// </summary>
+        public bool EnableGravatar { get; set; }
     }
 }
