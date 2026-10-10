@@ -98,6 +98,18 @@
             </span></span>
           </div>
           <div class="feature-toggle-row">
+            <span class="feature-toggle-label-text">Allow users to import their Gravatar</span>
+            <label class="switch">
+              <input type="checkbox" id="enableGravatar" />
+              <span class="switch-slider"></span>
+            </label>
+            <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+              <strong>Gravatar import</strong><br>
+              When enabled, users can enter their email address in the avatar picker to use their Gravatar as profile image.<br><br>
+              The server contacts gravatar.com with a hash of the address. The email address itself is never stored.
+            </span></span>
+          </div>
+          <div class="feature-toggle-row">
             <button id="assignMissingButton" is="emby-button" type="button" class="raised button-alt assign-missing-button">
               Assign missing avatars now
             </button>

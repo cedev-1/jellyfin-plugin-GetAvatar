@@ -406,6 +406,7 @@ export default function (view) {
   const fileNameSpan = view.querySelector("#fileName");
   const enableAutoAssignSwitch = view.querySelector("#enableAutoAssign");
   const enableAssignOnCreationSwitch = view.querySelector("#enableAssignOnCreation");
+  const enableGravatarSwitch = view.querySelector("#enableGravatar");
   const assignMissingButton = view.querySelector("#assignMissingButton");
 
   let selectedFiles = [];
@@ -419,6 +420,7 @@ export default function (view) {
       .then(function (settings) {
         enableAutoAssignSwitch.checked = settings.enableAutoAssign;
         enableAssignOnCreationSwitch.checked = settings.enableAssignOnUserCreation;
+        enableGravatarSwitch.checked = settings.enableGravatar;
       })
       .catch(function (error) {
         console.error("GetAvatar: Failed to load settings", error);
@@ -433,6 +435,7 @@ export default function (view) {
       data: JSON.stringify({
         enableAutoAssign: enableAutoAssignSwitch.checked,
         enableAssignOnUserCreation: enableAssignOnCreationSwitch.checked,
+        enableGravatar: enableGravatarSwitch.checked,
       }),
     })
       .then(function () {
@@ -822,6 +825,7 @@ export default function (view) {
   uploadButton.addEventListener("click", uploadAvatar);
   enableAutoAssignSwitch.addEventListener("change", saveSettings);
   enableAssignOnCreationSwitch.addEventListener("change", saveSettings);
+  enableGravatarSwitch.addEventListener("change", saveSettings);
 
   if (assignMissingButton) {
     assignMissingButton.addEventListener("click", function (e) {
