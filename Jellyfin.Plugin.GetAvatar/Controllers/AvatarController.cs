@@ -326,7 +326,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 {
                     if (!User.IsInRole("Administrator"))
                     {
-                        return Forbid("Only administrators can modify other users' avatars");
+                        return StatusCode(403, "Only administrators can modify other users' avatars");
                     }
                 }
 
