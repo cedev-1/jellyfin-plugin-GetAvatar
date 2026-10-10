@@ -23,8 +23,24 @@
         const modal = document.createElement('div');
         modal.id = CONFIG.modalId;
         modal.innerHTML = `
+            <style>
+                #${CONFIG.modalId} .getavatar-dialog {
+                    width: 900px;
+                    max-width: 90vw;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                @media all and (max-width: 80em), all and (max-height: 45em) {
+                    #${CONFIG.modalId} .getavatar-dialog {
+                        max-width: none;
+                        max-height: none;
+                    }
+                }
+            </style>
             <div class="dialogContainer" style="display:none;">
-                <div class="focuscontainer dialog dialog-fixedSize dialog-medium-tall" style="width:900px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;">
+                <div class="focuscontainer dialog dialog-fixedSize getavatar-dialog">
                     <div class="formDialogHeader">
                         <button is="paper-icon-button-light" class="btnCancel autoSize" title="Close">
                             <span class="material-icons close"></span>
