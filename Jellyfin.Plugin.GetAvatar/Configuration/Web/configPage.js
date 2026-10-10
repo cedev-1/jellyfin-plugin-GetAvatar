@@ -947,21 +947,13 @@ export default function (view) {
     importOnlinePacksButton.textContent = "Importing...";
 
     try {
-      const response = await fetch(ApiClient.getUrl("/GetAvatar/ImportOnlinePacks"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": 'MediaBrowser Token="' + ApiClient.accessToken() + '"',
-        },
-        body: JSON.stringify({ packs: packIds }),
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/ImportOnlinePacks"),
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ packs: packIds }),
+        dataType: "json",
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Import failed");
-      }
-
-      const result = await response.json();
       const imported = result.importedCount || 0;
       const total = result.totalImages || 0;
       const duplicates = result.duplicateCount || 0;
@@ -986,9 +978,14 @@ export default function (view) {
       }, 1500);
     } catch (error) {
       console.error("GetAvatar: Failed to import online packs", error);
+      // ApiClient.fetch rejects with the Response itself on HTTP errors
+      let message = error && error.message;
+      if (!message && error && typeof error.text === "function") {
+        message = (await error.text().catch(function () { return ""; })) || "HTTP " + error.status;
+      }
       onlinePackResult.style.display = "block";
       onlinePackResult.style.background = "rgba(229, 57, 53, 0.1)";
-      onlinePackResult.textContent = "Import failed: " + error.message;
+      onlinePackResult.textContent = "Import failed: " + (message || "Import failed");
     } finally {
       importOnlinePacksButton.disabled = false;
       importOnlinePacksButton.textContent = "Import Selected";
