@@ -10,6 +10,13 @@
     let selectedAvatarId = null;
     let targetUserId = null;
 
+    const GRAVATAR_ERRORS = {
+        400: 'Please enter a valid email address.',
+        403: 'Gravatar import is not allowed.',
+        404: 'No Gravatar found for this email.',
+        502: 'Could not reach Gravatar. Please try again later.'
+    };
+
     function createModal() {
         if (document.getElementById(CONFIG.modalId)) return;
 
@@ -27,6 +34,11 @@
                     <div class="formDialogContent" style="padding:2em;flex:1;display:flex;flex-direction:column;min-height:0;">
                         <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;flex-shrink:0;"></div>
                         <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-right:0.5em;"></div>
+                        <div id="gravatarSection" style="display:none;align-items:center;flex-wrap:wrap;gap:1em;flex-shrink:0;padding-top:1em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
+                            <span style="opacity:0.8;">Gravatar</span>
+                            <input type="email" id="gravatarEmailInput" class="emby-input" placeholder="you@example.com" autocomplete="email" style="flex:1;min-width:12em;" />
+                            <button is="emby-button" id="gravatarBtn" class="raised button-alt" disabled>Use my Gravatar</button>
+                        </div>
                         <div style="display:flex;justify-content:space-between;gap:1em;flex-shrink:0;padding-top:1.5em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
                             <button is="emby-button" id="randomAvatarBtn" class="raised button-alt" style="display:flex;align-items:center;gap:0.4em;">
                                 <span class="material-icons shuffle" style="margin:0;"></span>
@@ -47,6 +59,8 @@
         modal.querySelector('#cancelAvatarBtn').onclick = closeModal;
         modal.querySelector('#applyAvatarBtn').onclick = applyAvatar;
         modal.querySelector('#randomAvatarBtn').onclick = applyRandomAvatar;
+        modal.querySelector('#gravatarEmailInput').oninput = updateGravatarButton;
+        modal.querySelector('#gravatarBtn').onclick = applyGravatar;
         modal.querySelector('.dialogContainer').onclick = function(e) {
             if (e.target === this) closeModal();
         };
@@ -69,6 +83,7 @@
             document.body.style.width = '100%';
             
             loadAvatars();
+            loadFeatures();
         }
     }
 
@@ -77,6 +92,10 @@
         if (container) {
             container.style.display = 'none';
             selectedAvatarId = null;
+
+            // Don't keep the email address in the page once the picker is closed
+            document.getElementById('gravatarEmailInput').value = '';
+            updateGravatarButton();
             
             // FIX phone scroll
             document.body.style.overflow = '';
@@ -292,6 +311,64 @@
             console.error('GetAvatar: Failed to apply random avatar', message, error);
             try { Dashboard.alert({ message: 'Failed to apply random avatar: ' + message, title: 'Error' }); } catch (e) { alert('Failed to apply random avatar: ' + message); }
             btn.disabled = false;
+        }
+    }
+
+    async function loadFeatures() {
+        const section = document.getElementById('gravatarSection');
+        try {
+            const features = await ApiClient.fetch({
+                url: ApiClient.getUrl(CONFIG.apiBaseUrl + '/Features'),
+                type: 'GET',
+                dataType: 'json'
+            });
+            section.style.display = features && features.gravatarEnabled ? 'flex' : 'none';
+        } catch (error) {
+            console.warn('GetAvatar: Failed to load features', error);
+            section.style.display = 'none';
+        }
+    }
+
+    function updateGravatarButton() {
+        const input = document.getElementById('gravatarEmailInput');
+        const btn = document.getElementById('gravatarBtn');
+        btn.disabled = !input.value.trim() || !input.checkValidity();
+    }
+
+    async function applyGravatar() {
+        const input = document.getElementById('gravatarEmailInput');
+        const btn = document.getElementById('gravatarBtn');
+        const email = input.value.trim();
+        if (!email) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Importing...';
+
+        try {
+            const requestBody = { email: email };
+            if (targetUserId) {
+                requestBody.userId = targetUserId;
+            }
+
+            await ApiClient.fetch({
+                url: ApiClient.getUrl(CONFIG.apiBaseUrl + '/Gravatar'),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(requestBody),
+                dataType: 'json'
+            });
+
+            closeModal();
+            refreshProfileImages('Gravatar imported!');
+        } catch (error) {
+            // ApiClient.fetch rejects with the Response itself on HTTP errors
+            const message = GRAVATAR_ERRORS[error && error.status]
+                || ((error && error.message) ? error.message : (error && error.status ? 'HTTP ' + error.status : String(error)));
+            console.error('GetAvatar: Failed to import Gravatar', message, error);
+            try { Dashboard.alert({ message: 'Failed to import Gravatar: ' + message, title: 'Error' }); } catch (e) { alert('Failed to import Gravatar: ' + message); }
+        } finally {
+            btn.textContent = 'Use my Gravatar';
+            updateGravatarButton();
         }
     }
 
