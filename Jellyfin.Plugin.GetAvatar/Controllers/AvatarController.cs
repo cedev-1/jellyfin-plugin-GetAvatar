@@ -279,55 +279,10 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                     return BadRequest("Avatar ID is required");
                 }
 
-                // Get user ID
-                Guid currentUserId = Guid.Empty;
-                var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId" || c.Type == "sub" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier");
-                if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var claimUserId))
+                var accessError = ResolveTargetUser(request.UserId, out var targetUserId);
+                if (accessError != null)
                 {
-                    currentUserId = claimUserId;
-                }
-                else
-                {
-                    var usernameClaim = User.Claims.FirstOrDefault(c => c.Type == "name" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name");
-                    if (usernameClaim != null)
-                    {
-                        var user = _userManager.GetUserByName(usernameClaim.Value);
-                        if (user != null)
-                        {
-                            currentUserId = user.Id;
-                        }
-                    }
-                }
-
-                if (currentUserId == Guid.Empty)
-                {
-                    return Unauthorized("User not authenticated");
-                }
-
-                Guid targetUserId = Guid.Empty;
-
-                if (!string.IsNullOrEmpty(request.UserId))
-                {
-                    if (Guid.TryParse(request.UserId, out var parsedUserId))
-                    {
-                        targetUserId = parsedUserId;
-                    }
-                    else
-                    {
-                        return BadRequest("Invalid user ID format");
-                    }
-                }
-                else
-                {
-                    targetUserId = currentUserId;
-                }
-
-                if (targetUserId != currentUserId)
-                {
-                    if (!User.IsInRole("Administrator"))
-                    {
-                        return StatusCode(403, "Only administrators can modify other users' avatars");
-                    }
+                    return accessError;
                 }
 
                 await _avatarService.SetUserAvatarAsync(targetUserId, request.AvatarId);
@@ -606,6 +561,42 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 _logger.LogError(ex, "Failed to import online avatar packs");
                 return StatusCode(500, "Failed to import online avatar packs");
             }
+        }
+
+        /// <summary>
+        /// Resolves the user targeted by a request and checks that the caller may modify that user.
+        /// Users can only modify themselves; administrators can modify anyone.
+        /// </summary>
+        /// <param name="requestedUserId">The requested user ID, or null for the current user.</param>
+        /// <param name="targetUserId">The resolved target user ID.</param>
+        /// <returns>An error result, or null when the caller may modify the target user.</returns>
+        private IActionResult? ResolveTargetUser(string? requestedUserId, out Guid targetUserId)
+        {
+            targetUserId = Guid.Empty;
+
+            // Jellyfin stores the authenticated user's ID in the "Jellyfin-UserId" claim (InternalClaimTypes.UserId).
+            if (!Guid.TryParse(User.FindFirst("Jellyfin-UserId")?.Value, out var currentUserId) || currentUserId == Guid.Empty)
+            {
+                return Unauthorized("User not authenticated");
+            }
+
+            if (string.IsNullOrEmpty(requestedUserId))
+            {
+                targetUserId = currentUserId;
+                return null;
+            }
+
+            if (!Guid.TryParse(requestedUserId, out targetUserId))
+            {
+                return BadRequest("Invalid user ID format");
+            }
+
+            if (targetUserId != currentUserId && !User.IsInRole("Administrator"))
+            {
+                return StatusCode(403, "Only administrators can modify other users' avatars");
+            }
+
+            return null;
         }
 
         /// <summary>
