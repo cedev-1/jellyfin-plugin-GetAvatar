@@ -236,8 +236,8 @@
                     opt.style.borderColor = 'transparent';
                     opt.style.background = '';
                 });
-                this.style.borderColor = '#52B54B';
-                this.style.background = 'rgba(82,181,75,0.15)';
+                this.style.borderColor = '#fff';
+                this.style.background = 'rgba(255,255,255,0.15)';
                 selectedAvatarId = this.dataset.id;
                 document.getElementById('applyAvatarBtn').disabled = false;
             };
