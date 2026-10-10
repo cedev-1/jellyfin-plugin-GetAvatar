@@ -90,17 +90,12 @@
         container.innerHTML = '<p style="grid-column:1/-1;text-align:center;opacity:0.7;">Loading...</p>';
 
         try {
-            const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/Avatars'), {
-                headers: {
-                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
-                }
+            avatars = await ApiClient.fetch({
+                url: ApiClient.getUrl(CONFIG.apiBaseUrl + '/Avatars'),
+                type: 'GET',
+                dataType: 'json'
             });
 
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
-
-            avatars = await response.json();
             console.log('GetAvatar: Loaded avatars', avatars);
             renderAvatars(avatars);
         } catch (error) {
@@ -245,24 +240,20 @@
                 requestBody.userId = targetUserId;
             }
 
-            const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
-                },
-                body: JSON.stringify(requestBody)
+            await ApiClient.fetch({
+                url: ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(requestBody),
+                dataType: 'json'
             });
-
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
 
             closeModal();
             refreshProfileImages('Avatar updated!');
         } catch (error) {
-            console.error('GetAvatar: Failed to set avatar', error.name + ': ' + error.message, error.stack);
-            try { Dashboard.alert({ message: 'Failed to set avatar: ' + error.message, title: 'Error' }); } catch (e) { alert('Failed to set avatar: ' + error.message); }
+            const message = (error && error.message) ? error.message : (error && error.status ? 'HTTP ' + error.status : String(error));
+            console.error('GetAvatar: Failed to set avatar', message, error);
+            try { Dashboard.alert({ message: 'Failed to set avatar: ' + message, title: 'Error' }); } catch (e) { alert('Failed to set avatar: ' + message); }
             btn.disabled = false;
             btn.textContent = 'Set as My Avatar';
         }
@@ -286,24 +277,20 @@
                 requestBody.userId = targetUserId;
             }
 
-            const response = await fetch(ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
-                },
-                body: JSON.stringify(requestBody)
+            await ApiClient.fetch({
+                url: ApiClient.getUrl(CONFIG.apiBaseUrl + '/SetAvatar'),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(requestBody),
+                dataType: 'json'
             });
-
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
 
             closeModal();
             refreshProfileImages('Random avatar applied!');
         } catch (error) {
-            console.error('GetAvatar: Failed to apply random avatar', error);
-            try { Dashboard.alert({ message: 'Failed to apply random avatar: ' + error.message, title: 'Error' }); } catch (e) { alert('Failed to apply random avatar: ' + error.message); }
+            const message = (error && error.message) ? error.message : (error && error.status ? 'HTTP ' + error.status : String(error));
+            console.error('GetAvatar: Failed to apply random avatar', message, error);
+            try { Dashboard.alert({ message: 'Failed to apply random avatar: ' + message, title: 'Error' }); } catch (e) { alert('Failed to apply random avatar: ' + message); }
             btn.disabled = false;
         }
     }

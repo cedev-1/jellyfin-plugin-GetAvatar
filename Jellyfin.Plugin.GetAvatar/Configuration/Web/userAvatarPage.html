@@ -119,10 +119,11 @@
         }
 
         function loadAvatars() {
-            fetch(ApiClient.getUrl('/GetAvatar/Avatars'), {
-                headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' }
+            ApiClient.fetch({
+                url: ApiClient.getUrl('/GetAvatar/Avatars'),
+                type: 'GET',
+                dataType: 'json'
             })
-            .then(response => response.json())
             .then(avatars => renderAvatars(avatars))
             .catch(error => {
                 console.error('Failed to load avatars:', error);
@@ -218,17 +219,12 @@
 
             Dashboard.showLoadingMsg();
 
-            fetch(ApiClient.getUrl('/GetAvatar/SetAvatar'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"'
-                },
-                body: JSON.stringify({ avatarId: selectedAvatarId })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Failed');
-                return response.json();
+            ApiClient.fetch({
+                url: ApiClient.getUrl('/GetAvatar/SetAvatar'),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ avatarId: selectedAvatarId }),
+                dataType: 'json'
             })
             .then(() => {
                 Dashboard.hideLoadingMsg();
