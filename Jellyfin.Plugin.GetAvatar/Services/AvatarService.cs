@@ -268,16 +268,12 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// <returns>Task representing the operation.</returns>
         public async Task SetUserAvatarAsync(Guid userId, string avatarId)
         {
-            _logger.LogInformation("SetUserAvatarAsync called: userId={UserId}, avatarId={AvatarId}", userId, avatarId);
-
             var user = _userManager.GetUserById(userId);
             if (user == null)
             {
                 _logger.LogError("User not found: {UserId}", userId);
                 throw new ArgumentException($"User not found: {userId}");
             }
-
-            _logger.LogInformation("Found user: {UserName}", user.Username);
 
             var avatarPath = GetAvatarPath(avatarId);
             if (avatarPath == null)
@@ -286,58 +282,10 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 throw new ArgumentException($"Avatar not found: {avatarId}");
             }
 
-            _logger.LogInformation("Avatar path: {Path}", avatarPath);
-
-            // Determine file extension and MIME type
-            var extension = Path.GetExtension(avatarPath).ToLowerInvariant();
-            var mimeType = extension switch
+            await using (var image = File.OpenRead(avatarPath))
             {
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".png" => "image/png",
-                ".webp" => "image/webp",
-                ".gif" => "image/gif",
-                _ => "image/jpeg"
-            };
-
-            _logger.LogInformation("MIME type: {MimeType}, Extension: {Extension}", mimeType, extension);
-
-            // Use Jellyfin's native user profile image path and save pipeline.
-            // This mirrors Jellyfin.Api.Controllers.ImageController.PostUserImage.
-            var userDataPath = Path.Combine(
-                _serverConfigurationManager.ApplicationPaths.UserConfigurationDirectoryPath,
-                user.Username);
-
-            _logger.LogInformation("User profile image directory: {Path}", userDataPath);
-
-            Directory.CreateDirectory(userDataPath);
-
-            var profileImagePath = Path.Combine(userDataPath, "profile" + extension);
-            _logger.LogInformation("Profile image path: {Path}", profileImagePath);
-
-            try
-            {
-                if (user.ProfileImage is not null)
-                {
-                    await _userManager.ClearProfileImageAsync(user).ConfigureAwait(false);
-                    _logger.LogInformation("Cleared existing profile image for user {UserName}", user.Username);
-                }
-
-                user.ProfileImage = new ImageInfo(profileImagePath);
-
-                await using var stream = File.OpenRead(avatarPath);
-                await _providerManager
-                    .SaveImage(stream, mimeType, profileImagePath)
-                    .ConfigureAwait(false);
-
-                await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
-
-                _logger.LogInformation("Updated profile image via Jellyfin image pipeline: {Path}", profileImagePath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to save/update profile image via Jellyfin image pipeline");
-
-                throw;
+                var extension = Path.GetExtension(avatarPath).ToLowerInvariant();
+                await SaveProfileImageAsync(user, image, extension).ConfigureAwait(false);
             }
 
             // Store the mapping in plugin config
@@ -367,6 +315,41 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             Plugin.Instance.SaveConfiguration();
 
             _logger.LogInformation("Successfully set avatar {AvatarId} for user {UserName} ({UserId})", avatarId, user.Username, userId);
+        }
+
+        /// <summary>
+        /// Saves an image as the user's Jellyfin profile image.
+        /// This mirrors Jellyfin.Api.Controllers.ImageController.PostUserImage.
+        /// </summary>
+        /// <param name="user">The user.</param>
+        /// <param name="image">The image data.</param>
+        /// <param name="extension">The image file extension, including the leading dot.</param>
+        /// <returns>Task representing the operation.</returns>
+        private async Task SaveProfileImageAsync(User user, Stream image, string extension)
+        {
+            var mimeType = extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".gif" => "image/gif",
+                _ => "image/jpeg"
+            };
+
+            var userDataPath = Path.Combine(
+                _serverConfigurationManager.ApplicationPaths.UserConfigurationDirectoryPath,
+                user.Username);
+            Directory.CreateDirectory(userDataPath);
+            var profileImagePath = Path.Combine(userDataPath, "profile" + extension);
+
+            if (user.ProfileImage is not null)
+            {
+                await _userManager.ClearProfileImageAsync(user).ConfigureAwait(false);
+            }
+
+            user.ProfileImage = new ImageInfo(profileImagePath);
+            await _providerManager.SaveImage(image, mimeType, profileImagePath).ConfigureAwait(false);
+            await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
         }
 
         /// <summary>
