@@ -4,7 +4,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.GetAvatar.Controllers;
@@ -166,7 +165,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
 
         private async Task<PackImportDetails> ImportPackAsync(OnlinePackInfo pack)
         {
-            var existingHashes = GetExistingAvatarHashes();
+            var existingHashes = _avatarService.GetExistingAvatarHashes();
             var tempDirectory = Path.Combine(Path.GetTempPath(), "GetAvatar", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDirectory);
 
@@ -207,7 +206,7 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                         }
 
                         var imageData = await File.ReadAllBytesAsync(imagePath).ConfigureAwait(false);
-                        var hash = ComputeHash(imageData);
+                        var hash = AvatarService.ComputeHash(imageData);
 
                         if (existingHashes.Contains(hash))
                         {
@@ -272,39 +271,6 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                     throw new InvalidOperationException($"Downloaded file exceeded maximum allowed size ({maxSizeBytes} bytes).");
                 }
             }
-        }
-
-        private HashSet<string> GetExistingAvatarHashes()
-        {
-            var hashes = new HashSet<string>();
-            var avatarDirectory = _avatarService.AvatarDirectory;
-
-            if (!Directory.Exists(avatarDirectory))
-            {
-                return hashes;
-            }
-
-            foreach (var file in Directory.GetFiles(avatarDirectory))
-            {
-                try
-                {
-                    var data = File.ReadAllBytes(file);
-                    hashes.Add(ComputeHash(data));
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to compute hash for existing avatar: {File}", file);
-                }
-            }
-
-            return hashes;
-        }
-
-        private static string ComputeHash(byte[] data)
-        {
-            using var sha256 = SHA256.Create();
-            var hash = sha256.ComputeHash(data);
-            return Convert.ToHexString(hash);
         }
 
         private static string GetDisplayName(string packId)

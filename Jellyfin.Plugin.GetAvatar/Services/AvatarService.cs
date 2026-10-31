@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.GetAvatar.Configuration;
@@ -90,6 +91,44 @@ namespace Jellyfin.Plugin.GetAvatar.Services
         /// Gets the avatar directory path.
         /// </summary>
         public string AvatarDirectory => _avatarDirectory;
+
+        /// <summary>
+        /// Computes the content hash used to detect duplicate avatars.
+        /// </summary>
+        /// <param name="data">The image data.</param>
+        /// <returns>The hexadecimal SHA-256 hash.</returns>
+        public static string ComputeHash(byte[] data)
+        {
+            return Convert.ToHexString(SHA256.HashData(data));
+        }
+
+        /// <summary>
+        /// Gets the content hashes of all avatars already in the pool.
+        /// </summary>
+        /// <returns>The set of hashes.</returns>
+        public HashSet<string> GetExistingAvatarHashes()
+        {
+            var hashes = new HashSet<string>();
+
+            if (!Directory.Exists(_avatarDirectory))
+            {
+                return hashes;
+            }
+
+            foreach (var file in Directory.GetFiles(_avatarDirectory))
+            {
+                try
+                {
+                    hashes.Add(ComputeHash(File.ReadAllBytes(file)));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to compute hash for existing avatar: {File}", file);
+                }
+            }
+
+            return hashes;
+        }
 
         /// <summary>
         /// Gets all available avatars from configuration.
