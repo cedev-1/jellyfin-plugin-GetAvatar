@@ -42,6 +42,7 @@ You just have to add avatar images, click on "Choose file" and "Upload". The ima
 You can import the photos of an [Immich](https://immich.app/) album as avatars. In Immich, create an API key with only the `album.read`, `asset.read` and `asset.view` permissions, then enter the server URL and the key in the plugin settings and click "Import from Immich".
 
 - Each album becomes a category. Re-importing only adds new photos, nothing is ever deleted.
+- Click "Sync Immich albums" to fetch the photos added since to every album you imported. Photos removed from an album stay in the gallery.
 - Up to 500 photos are imported per album.
 - The imported photos are visible to every user.
 - The API key is stored unencrypted in the plugin configuration file.
