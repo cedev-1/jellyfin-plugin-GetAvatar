@@ -46,6 +46,10 @@
               <span class="material-icons" style="font-size: 1.1em">cloud_download</span>
               Download Online Pack
             </button>
+            <button id="importImmichButton" is="emby-button" type="button" class="raised button-alt upload-label download-online-pack-button" style="display:none;">
+              <span class="material-icons" style="font-size: 1.1em">photo_library</span>
+              Import from Immich
+            </button>
           </div>
           <details class="category-details">
             <summary class="category-summary">
@@ -110,6 +114,32 @@
             </span></span>
           </div>
           <div class="feature-toggle-row">
+            <span class="feature-toggle-label-text">Enable Immich album import</span>
+            <label class="switch">
+              <input type="checkbox" id="enableImmich" />
+              <span class="switch-slider"></span>
+            </label>
+            <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+              <strong>Immich album import</strong><br>
+              Lets you import the photos of an Immich album as avatars.<br><br>
+              Create an API key in Immich with only the <em>album.read</em>, <em>asset.read</em> and <em>asset.view</em> permissions.
+              The key is stored unencrypted in the plugin configuration.
+            </span></span>
+          </div>
+          <details id="immichSettings" class="category-details" style="display:none;margin-bottom:2em;">
+            <summary class="category-summary">
+              <span class="material-icons" style="font-size:1em;vertical-align:middle;">photo_library</span>
+              Immich connection
+            </summary>
+            <div class="category-field" style="display:flex;flex-wrap:wrap;gap:0.6em;align-items:center;font-size:0.9em;">
+              <input type="text" id="immichUrl" is="emby-input" placeholder="http://immich:2283" style="flex:none;width:18em;" />
+              <input type="password" id="immichApiKey" is="emby-input" placeholder="API key" autocomplete="off" style="flex:none;width:18em;" />
+              <button id="testImmichButton" is="emby-button" type="button" class="raised button-alt">Test</button>
+              <button id="saveImmichButton" is="emby-button" type="button" class="raised button-submit">Save</button>
+              <span id="immichStatus" style="flex-basis:100%;opacity:0.8;"></span>
+            </div>
+          </details>
+          <div class="feature-toggle-row">
             <button id="assignMissingButton" is="emby-button" type="button" class="raised button-alt assign-missing-button">
               Assign missing avatars now
             </button>
@@ -152,6 +182,29 @@
               <button id="cancelOnlinePackDialog" is="emby-button" type="button" class="raised button-cancel">Cancel</button>
               <button id="importAllOnlinePacksButton" is="emby-button" type="button" class="raised button-submit">Import All</button>
               <button id="importOnlinePacksButton" is="emby-button" type="button" class="raised button-submit" disabled>Import Selected</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="immichDialog" style="display:none;">
+      <div class="dialogContainer" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;">
+        <div class="focuscontainer dialog dialog-fixedSize" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column;background:#1a1a1a;border-radius:4px;overflow:hidden;">
+          <div class="formDialogHeader" style="display:flex;align-items:center;justify-content:space-between;padding:1em 1.2em;border-bottom:1px solid rgba(255,255,255,0.1);">
+            <h3 class="formDialogHeaderTitle">Import from Immich</h3>
+            <button id="closeImmichDialog" is="paper-icon-button-light" class="autoSize" title="Close">
+              <span class="material-icons close"></span>
+            </button>
+          </div>
+          <div class="formDialogContent scrollY" style="padding:1.5em;flex:1;overflow-y:auto;">
+            <p style="margin-top:0;opacity:0.8;">Select the albums to import. Each album becomes a category. The photos will be visible to every user. Up to 500 photos are imported per album.</p>
+            <div id="immichAlbumList" style="margin-top:1em;">
+              <div class="loading-state">Loading albums...</div>
+            </div>
+            <div id="immichResult" style="display:none;margin-top:1em;padding:1em;border-radius:4px;background:rgba(82,181,75,0.1);"></div>
+            <div style="margin-top:1.5em;display:flex;justify-content:flex-end;gap:1em;">
+              <button id="cancelImmichDialog" is="emby-button" type="button" class="raised button-cancel">Close</button>
+              <button id="importImmichAlbumsButton" is="emby-button" type="button" class="raised button-submit" disabled>Import Selected</button>
             </div>
           </div>
         </div>

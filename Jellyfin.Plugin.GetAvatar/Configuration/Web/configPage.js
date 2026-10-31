@@ -408,8 +408,31 @@ export default function (view) {
   const enableAssignOnCreationSwitch = view.querySelector("#enableAssignOnCreation");
   const enableGravatarSwitch = view.querySelector("#enableGravatar");
   const assignMissingButton = view.querySelector("#assignMissingButton");
+  const enableImmichSwitch = view.querySelector("#enableImmich");
+  const immichSettings = view.querySelector("#immichSettings");
+  const immichUrlInput = view.querySelector("#immichUrl");
+  const immichApiKeyInput = view.querySelector("#immichApiKey");
+  const saveImmichButton = view.querySelector("#saveImmichButton");
+  const testImmichButton = view.querySelector("#testImmichButton");
+  const immichStatus = view.querySelector("#immichStatus");
 
   let selectedFiles = [];
+
+  // The connection settings and the import button only show when Immich is enabled
+  function applyImmichVisibility() {
+    const enabled = enableImmichSwitch.checked;
+    immichSettings.style.display = enabled ? "" : "none";
+    view.querySelector("#importImmichButton").style.display = enabled ? "" : "none";
+  }
+
+  // ApiClient.fetch rejects with the Response itself on HTTP errors
+  async function errorMessage(error, fallback) {
+    let message = error && error.message;
+    if (!message && error && typeof error.text === "function") {
+      message = (await error.text().catch(function () { return ""; })) || "HTTP " + error.status;
+    }
+    return message || fallback;
+  }
 
   function loadSettings() {
     ApiClient.fetch({
@@ -421,29 +444,46 @@ export default function (view) {
         enableAutoAssignSwitch.checked = settings.enableAutoAssign;
         enableAssignOnCreationSwitch.checked = settings.enableAssignOnUserCreation;
         enableGravatarSwitch.checked = settings.enableGravatar;
+        enableImmichSwitch.checked = settings.enableImmich;
+        applyImmichVisibility();
+        immichUrlInput.value = settings.immichUrl || "";
+        immichApiKeyInput.value = "";
+        immichApiKeyInput.placeholder = settings.immichConfigured ? "API key saved (leave empty to keep it)" : "API key";
       })
       .catch(function (error) {
         console.error("GetAvatar: Failed to load settings", error);
       });
   }
 
-  function saveSettings() {
-    ApiClient.fetch({
+  // The Immich fields are only sent from the Immich "Save" button, so toggling a switch
+  // never saves a half-typed URL or key.
+  function saveSettings(includeImmich) {
+    const payload = {
+      enableAutoAssign: enableAutoAssignSwitch.checked,
+      enableAssignOnUserCreation: enableAssignOnCreationSwitch.checked,
+      enableGravatar: enableGravatarSwitch.checked,
+      enableImmich: enableImmichSwitch.checked,
+    };
+    if (includeImmich === true) {
+      payload.immichUrl = immichUrlInput.value;
+      payload.immichApiKey = immichApiKeyInput.value;
+    }
+
+    return ApiClient.fetch({
       url: ApiClient.getUrl("/GetAvatar/Settings"),
       type: "POST",
       contentType: "application/json",
-      data: JSON.stringify({
-        enableAutoAssign: enableAutoAssignSwitch.checked,
-        enableAssignOnUserCreation: enableAssignOnCreationSwitch.checked,
-        enableGravatar: enableGravatarSwitch.checked,
-      }),
+      data: JSON.stringify(payload),
     })
       .then(function () {
         Dashboard.alert({ message: "Settings saved.", title: "Success" });
+        if (includeImmich === true) {
+          loadSettings();
+        }
       })
-      .catch(function (error) {
+      .catch(async function (error) {
         console.error("GetAvatar: Failed to save settings", error);
-        Dashboard.alert({ message: "Failed to save settings.", title: "Error" });
+        Dashboard.alert({ message: await errorMessage(error, "Failed to save settings."), title: "Error" });
       });
   }
 
@@ -1042,6 +1082,159 @@ export default function (view) {
       importAllOnlinePacks();
     });
   }
+
+  // --- Immich album import ---------------------------------------------------
+
+  const importImmichButton = view.querySelector("#importImmichButton");
+  const immichDialog = view.querySelector("#immichDialog");
+  const immichAlbumList = view.querySelector("#immichAlbumList");
+  const immichResult = view.querySelector("#immichResult");
+  const importImmichAlbumsButton = view.querySelector("#importImmichAlbumsButton");
+
+  function showImmichResult(background, text) {
+    immichResult.style.display = "block";
+    immichResult.style.background = background;
+    immichResult.textContent = text;
+  }
+
+  async function testImmich() {
+    testImmichButton.disabled = true;
+    immichStatus.textContent = "Testing...";
+    try {
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/ImmichTest"),
+        type: "POST",
+        contentType: "application/json",
+        // The form values are tested as typed, saved or not; an empty key falls back to the saved one
+        data: JSON.stringify({ url: immichUrlInput.value, apiKey: immichApiKeyInput.value }),
+        dataType: "json",
+      });
+      immichStatus.textContent = "Connected: " + result.albumCount + " album(s) visible.";
+    } catch (error) {
+      immichStatus.textContent = "Failed: " + (await errorMessage(error, "Connection failed"));
+    } finally {
+      testImmichButton.disabled = false;
+    }
+  }
+
+  function updateImmichImportButton() {
+    importImmichAlbumsButton.disabled = immichAlbumList.querySelectorAll('input[type="checkbox"]:checked').length === 0;
+  }
+
+  async function openImmichDialog() {
+    immichDialog.style.display = "block";
+    immichResult.style.display = "none";
+    immichResult.textContent = "";
+    importImmichAlbumsButton.disabled = true;
+    immichAlbumList.innerHTML = '<div class="loading-state">Loading albums...</div>';
+
+    try {
+      const albums = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/ImmichAlbums"),
+        type: "GET",
+        dataType: "json",
+      });
+      if (!albums || albums.length === 0) {
+        immichAlbumList.innerHTML = '<div class="online-pack-empty">No albums found.</div>';
+        return;
+      }
+      immichAlbumList.innerHTML =
+        '<div class="online-pack-list">' +
+        albums.map(function (album) {
+          return `
+        <label class="online-pack-item">
+          <input type="checkbox" value="${escapeHtml(album.id)}" />
+          <div class="online-pack-info">
+            <span class="online-pack-name">${escapeHtml(album.name)}</span>
+            <span class="online-pack-size">${escapeHtml(album.assetCount + " item(s)")}</span>
+          </div>
+        </label>`;
+        }).join("") +
+        "</div>";
+      immichAlbumList.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+        checkbox.addEventListener("change", updateImmichImportButton);
+      });
+    } catch (error) {
+      const message = await errorMessage(error, "Failed to load albums");
+      immichAlbumList.innerHTML = '<div class="online-pack-error">' + escapeHtml(message) + "</div>";
+    }
+  }
+
+  function closeImmichDialog() {
+    immichDialog.style.display = "none";
+    immichAlbumList.innerHTML = "";
+  }
+
+  async function importImmichAlbums() {
+    const albumIds = Array.from(immichAlbumList.querySelectorAll('input[type="checkbox"]:checked')).map(function (cb) { return cb.value; });
+    if (albumIds.length === 0) return;
+
+    importImmichAlbumsButton.disabled = true;
+    importImmichAlbumsButton.textContent = "Importing...";
+
+    let imported = 0;
+    let duplicates = 0;
+    let errors = 0;
+    let skipped = 0;
+    let failure = null;
+
+    // Albums are imported one at a time: the server serialises imports anyway
+    for (const albumId of albumIds) {
+      try {
+        const result = await ApiClient.fetch({
+          url: ApiClient.getUrl("/GetAvatar/ImportImmichAlbum"),
+          type: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({ albumId: albumId }),
+          dataType: "json",
+        });
+        imported += result.importedCount || 0;
+        duplicates += result.duplicateCount || 0;
+        errors += result.errorCount || 0;
+        skipped += result.skippedCount || 0;
+      } catch (error) {
+        failure = await errorMessage(error, "Import failed");
+        break;
+      }
+    }
+
+    let summary = imported + " imported, " + duplicates + " already present";
+    if (errors > 0) summary += ", " + errors + " failed";
+    if (skipped > 0) summary += ", " + skipped + " left out (500 per album limit)";
+
+    if (failure) {
+      showImmichResult("rgba(229, 57, 53, 0.1)", "Import failed: " + failure + " (" + summary + ")");
+    } else {
+      showImmichResult(imported > 0 ? "rgba(82, 181, 75, 0.1)" : "rgba(255, 255, 255, 0.1)", summary + ".");
+    }
+
+    if (imported > 0) {
+      loadAvatars();
+    }
+    importImmichAlbumsButton.textContent = "Import Selected";
+    updateImmichImportButton();
+  }
+
+  enableImmichSwitch.addEventListener("change", function () {
+    applyImmichVisibility();
+    saveSettings();
+  });
+  saveImmichButton.addEventListener("click", function (e) {
+    e.preventDefault();
+    saveSettings(true);
+  });
+  testImmichButton.addEventListener("click", function (e) {
+    e.preventDefault();
+    testImmich();
+  });
+  importImmichButton.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openImmichDialog();
+  });
+  view.querySelector("#closeImmichDialog").addEventListener("click", closeImmichDialog);
+  view.querySelector("#cancelImmichDialog").addEventListener("click", closeImmichDialog);
+  importImmichAlbumsButton.addEventListener("click", importImmichAlbums);
 
   view.addEventListener("viewshow", function () {
     loadSettings();
