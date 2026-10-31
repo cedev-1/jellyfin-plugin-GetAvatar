@@ -106,46 +106,110 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 var album = albums.Find(a => string.Equals(a.Id, albumId, StringComparison.OrdinalIgnoreCase))
                     ?? throw new InvalidOperationException("Album not found");
 
-                using var client = CreateClient(out var baseUrl);
-                var result = new ImmichImportResult { AlbumName = album.Name };
-                var assets = await ListAlbumAssetsAsync(client, baseUrl, album.Id, result).ConfigureAwait(false);
-                var existingHashes = _avatarService.GetExistingAvatarHashes();
-
-                foreach (var (assetId, fileName) in assets)
-                {
-                    try
-                    {
-                        var image = await DownloadThumbnailAsync(client, baseUrl, assetId).ConfigureAwait(false);
-                        var hash = AvatarService.ComputeHash(image.Data);
-                        if (!existingHashes.Add(hash))
-                        {
-                            result.DuplicateCount++;
-                            continue;
-                        }
-
-                        var name = Path.GetFileNameWithoutExtension(fileName);
-                        await _avatarService.SaveAvatarAsync((string.IsNullOrWhiteSpace(name) ? assetId : name) + image.Extension, image.Data, album.Name).ConfigureAwait(false);
-                        result.ImportedCount++;
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException or InvalidDataException or TaskCanceledException)
-                    {
-                        _logger.LogWarning(ex, "Failed to import Immich asset {AssetId}", assetId);
-                        result.ErrorCount++;
-                    }
-                }
-
-                _logger.LogInformation(
-                    "Imported {Imported} avatars from Immich album {Album} ({Duplicates} duplicates, {Errors} errors, {Skipped} skipped)",
-                    result.ImportedCount,
-                    album.Name,
-                    result.DuplicateCount,
-                    result.ErrorCount,
-                    result.SkippedCount);
-                return result;
+                return await ImportAlbumCoreAsync(album).ConfigureAwait(false);
             }
             finally
             {
                 _importLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Re-imports every album imported so far, to pick up the photos added since. Same rules as
+        /// <see cref="ImportAlbumAsync"/>: additive only, duplicates skipped, nothing deleted.
+        /// Albums that no longer exist (or are no longer visible to the API key) are counted, not removed from the list.
+        /// </summary>
+        /// <returns>The combined result.</returns>
+        /// <exception cref="InvalidOperationException">Immich is not configured.</exception>
+        /// <exception cref="HttpRequestException">Immich could not be reached or returned an error.</exception>
+        public async Task<ImmichSyncResult> SyncAlbumsAsync()
+        {
+            await _importLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var syncResult = new ImmichSyncResult();
+                var albumIds = new List<string>(Plugin.Config.ImmichSyncAlbumIds ?? new List<string>());
+                if (albumIds.Count == 0)
+                {
+                    return syncResult;
+                }
+
+                var albums = await ListAlbumsAsync().ConfigureAwait(false);
+                foreach (var albumId in albumIds)
+                {
+                    var album = albums.Find(a => string.Equals(a.Id, albumId, StringComparison.OrdinalIgnoreCase));
+                    if (album == null)
+                    {
+                        syncResult.MissingAlbumCount++;
+                        continue;
+                    }
+
+                    var result = await ImportAlbumCoreAsync(album).ConfigureAwait(false);
+                    syncResult.AlbumCount++;
+                    syncResult.ImportedCount += result.ImportedCount;
+                    syncResult.DuplicateCount += result.DuplicateCount;
+                    syncResult.ErrorCount += result.ErrorCount;
+                    syncResult.SkippedCount += result.SkippedCount;
+                }
+
+                return syncResult;
+            }
+            finally
+            {
+                _importLock.Release();
+            }
+        }
+
+        private async Task<ImmichImportResult> ImportAlbumCoreAsync(ImmichAlbumInfo album)
+        {
+            using var client = CreateClient(out var baseUrl);
+            var result = new ImmichImportResult { AlbumName = album.Name };
+            var assets = await ListAlbumAssetsAsync(client, baseUrl, album.Id, result).ConfigureAwait(false);
+            var existingHashes = _avatarService.GetExistingAvatarHashes();
+
+            foreach (var (assetId, fileName) in assets)
+            {
+                try
+                {
+                    var image = await DownloadThumbnailAsync(client, baseUrl, assetId).ConfigureAwait(false);
+                    var hash = AvatarService.ComputeHash(image.Data);
+                    if (!existingHashes.Add(hash))
+                    {
+                        result.DuplicateCount++;
+                        continue;
+                    }
+
+                    var name = Path.GetFileNameWithoutExtension(fileName);
+                    await _avatarService.SaveAvatarAsync((string.IsNullOrWhiteSpace(name) ? assetId : name) + image.Extension, image.Data, album.Name).ConfigureAwait(false);
+                    result.ImportedCount++;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or InvalidDataException or TaskCanceledException)
+                {
+                    _logger.LogWarning(ex, "Failed to import Immich asset {AssetId}", assetId);
+                    result.ErrorCount++;
+                }
+            }
+
+            RememberAlbum(album.Id);
+
+            _logger.LogInformation(
+                "Imported {Imported} avatars from Immich album {Album} ({Duplicates} duplicates, {Errors} errors, {Skipped} skipped)",
+                result.ImportedCount,
+                album.Name,
+                result.DuplicateCount,
+                result.ErrorCount,
+                result.SkippedCount);
+            return result;
+        }
+
+        private static void RememberAlbum(string albumId)
+        {
+            var config = Plugin.Config;
+            config.ImmichSyncAlbumIds ??= new List<string>();
+            if (!config.ImmichSyncAlbumIds.Contains(albumId, StringComparer.OrdinalIgnoreCase))
+            {
+                config.ImmichSyncAlbumIds.Add(albumId);
+                Plugin.Instance?.SaveConfiguration();
             }
         }
 

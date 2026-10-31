@@ -699,6 +699,38 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             }
         }
 
+        /// <summary>
+        /// Re-imports the Immich albums imported so far, to pick up newly added photos.
+        /// </summary>
+        /// <returns>Combined import result.</returns>
+        [HttpPost("SyncImmichAlbums")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> SyncImmichAlbums()
+        {
+            if (!Plugin.Config.EnableImmich)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            try
+            {
+                var result = await _immichService.SyncAlbumsAsync().ConfigureAwait(false);
+                return Ok(new
+                {
+                    albumCount = result.AlbumCount,
+                    missingAlbumCount = result.MissingAlbumCount,
+                    importedCount = result.ImportedCount,
+                    duplicateCount = result.DuplicateCount,
+                    errorCount = result.ErrorCount,
+                    skippedCount = result.SkippedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "synchronize the Immich albums");
+            }
+        }
+
         private IActionResult ImmichError(Exception ex, string action)
         {
             switch (ex)
