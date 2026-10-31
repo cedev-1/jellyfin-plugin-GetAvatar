@@ -423,6 +423,7 @@ export default function (view) {
     const enabled = enableImmichSwitch.checked;
     immichSettings.style.display = enabled ? "" : "none";
     view.querySelector("#importImmichButton").style.display = enabled ? "" : "none";
+    view.querySelector("#syncImmichRow").style.display = enabled ? "" : "none";
   }
 
   // ApiClient.fetch rejects with the Response itself on HTTP errors
@@ -1215,6 +1216,50 @@ export default function (view) {
     updateImmichImportButton();
   }
 
+  async function syncImmichAlbums() {
+    const syncButton = view.querySelector("#syncImmichButton");
+    syncButton.disabled = true;
+    Dashboard.showLoadingMsg();
+
+    try {
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/SyncImmichAlbums"),
+        type: "POST",
+        dataType: "json",
+      });
+      Dashboard.hideLoadingMsg();
+
+      let message;
+      if (result.albumCount === 0 && result.missingAlbumCount === 0) {
+        message = 'No album to synchronize yet. Import an album with "Import from Immich" first.';
+      } else {
+        message =
+          result.albumCount + " album(s) synchronized: " + result.importedCount + " new, " + result.duplicateCount + " already present";
+        if (result.errorCount > 0) message += ", " + result.errorCount + " failed";
+        if (result.skippedCount > 0) message += ", " + result.skippedCount + " left out (500 per album limit)";
+        message += ".";
+        if (result.missingAlbumCount > 0) {
+          message += " " + result.missingAlbumCount + " album(s) could not be found in Immich.";
+        }
+      }
+      Dashboard.alert({ message: message, title: "Immich sync" });
+
+      if (result.importedCount > 0) {
+        loadAvatars();
+      }
+    } catch (error) {
+      Dashboard.hideLoadingMsg();
+      Dashboard.alert({ message: await errorMessage(error, "Sync failed"), title: "Error" });
+    } finally {
+      syncButton.disabled = false;
+    }
+  }
+
+  view.querySelector("#syncImmichButton").addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    syncImmichAlbums();
+  });
   enableImmichSwitch.addEventListener("change", function () {
     applyImmichVisibility();
     saveSettings();
