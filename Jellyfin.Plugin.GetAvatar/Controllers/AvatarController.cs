@@ -28,6 +28,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         private readonly AvatarService _avatarService;
         private readonly OnlinePackService _onlinePackService;
         private readonly GravatarService _gravatarService;
+        private readonly ImmichService _immichService;
         private readonly IUserManager _userManager;
         private readonly ILogger<AvatarController> _logger;
 
@@ -37,18 +38,21 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// <param name="avatarService">The avatar service.</param>
         /// <param name="onlinePackService">The online pack service.</param>
         /// <param name="gravatarService">The Gravatar service.</param>
+        /// <param name="immichService">The Immich service.</param>
         /// <param name="userManager">The user manager.</param>
         /// <param name="logger">The logger instance.</param>
         public AvatarController(
             AvatarService avatarService,
             OnlinePackService onlinePackService,
             GravatarService gravatarService,
+            ImmichService immichService,
             IUserManager userManager,
             ILogger<AvatarController> logger)
         {
             _avatarService = avatarService;
             _onlinePackService = onlinePackService;
             _gravatarService = gravatarService;
+            _immichService = immichService;
             _userManager = userManager;
             _logger = logger;
         }
@@ -552,7 +556,10 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             {
                 enableAutoAssign = Plugin.Config.EnableAutoAssign,
                 enableAssignOnUserCreation = Plugin.Config.EnableAssignOnUserCreation,
-                enableGravatar = Plugin.Config.EnableGravatar
+                enableGravatar = Plugin.Config.EnableGravatar,
+                enableImmich = Plugin.Config.EnableImmich,
+                immichUrl = Plugin.Config.ImmichUrl,
+                immichConfigured = !string.IsNullOrEmpty(Plugin.Config.ImmichUrl) && !string.IsNullOrEmpty(Plugin.Config.ImmichApiKey)
             });
         }
 
@@ -570,6 +577,12 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 return StatusCode(500, "Plugin not initialized");
             }
 
+            var immichUrl = request.ImmichUrl?.Trim();
+            if (!string.IsNullOrEmpty(immichUrl) && ImmichService.NormalizeUrl(immichUrl) == null)
+            {
+                return BadRequest("The Immich URL must be a valid http(s) URL");
+            }
+
             var config = Plugin.Config;
             config.EnableAutoAssign = request.EnableAutoAssign;
             config.EnableAssignOnUserCreation = request.EnableAssignOnUserCreation;
@@ -578,9 +591,132 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 config.EnableGravatar = request.EnableGravatar.Value;
             }
 
+            if (request.EnableImmich.HasValue)
+            {
+                config.EnableImmich = request.EnableImmich.Value;
+            }
+
+            if (immichUrl != null)
+            {
+                config.ImmichUrl = immichUrl;
+            }
+
+            if (!string.IsNullOrEmpty(request.ImmichApiKey))
+            {
+                config.ImmichApiKey = request.ImmichApiKey.Trim();
+            }
+
             Plugin.Instance.SaveConfiguration();
 
             return Ok(new { message = "Settings saved" });
+        }
+
+        /// <summary>
+        /// Checks the Immich connection. The URL and API key of the request are used when given (so unsaved
+        /// credentials can be tested), the saved ones otherwise.
+        /// </summary>
+        /// <param name="request">The credentials to test.</param>
+        /// <returns>The number of albums visible to the key.</returns>
+        [HttpPost("ImmichTest")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> TestImmich([FromBody] ImmichTestRequest request)
+        {
+            if (!Plugin.Config.EnableImmich)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            try
+            {
+                var albums = await _immichService.ListAlbumsAsync(request.Url, request.ApiKey).ConfigureAwait(false);
+                return Ok(new { albumCount = albums.Count });
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "test the Immich connection");
+            }
+        }
+
+        /// <summary>
+        /// Gets the Immich albums available for import.
+        /// </summary>
+        /// <returns>List of albums.</returns>
+        [HttpGet("ImmichAlbums")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> GetImmichAlbums()
+        {
+            if (!Plugin.Config.EnableImmich)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            try
+            {
+                var albums = await _immichService.ListAlbumsAsync().ConfigureAwait(false);
+                return Ok(albums.Select(a => new { id = a.Id, name = a.Name, assetCount = a.AssetCount }));
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "list the Immich albums");
+            }
+        }
+
+        /// <summary>
+        /// Imports the photos of an Immich album as avatars.
+        /// </summary>
+        /// <param name="request">The request containing the album ID.</param>
+        /// <returns>Import result.</returns>
+        [HttpPost("ImportImmichAlbum")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> ImportImmichAlbum([FromBody] ImportImmichAlbumRequest request)
+        {
+            if (!Plugin.Config.EnableImmich)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.AlbumId))
+            {
+                return BadRequest("No album selected");
+            }
+
+            try
+            {
+                var result = await _immichService.ImportAlbumAsync(request.AlbumId).ConfigureAwait(false);
+                return Ok(new
+                {
+                    albumName = result.AlbumName,
+                    totalAssets = result.TotalAssets,
+                    importedCount = result.ImportedCount,
+                    duplicateCount = result.DuplicateCount,
+                    errorCount = result.ErrorCount,
+                    skippedCount = result.SkippedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "import the Immich album");
+            }
+        }
+
+        private IActionResult ImmichError(Exception ex, string action)
+        {
+            switch (ex)
+            {
+                case InvalidOperationException:
+                    return BadRequest(ex.Message);
+                case HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized }:
+                    return StatusCode(502, "Immich rejected the API key");
+                case HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden }:
+                    return StatusCode(502, "The Immich API key lacks a required permission (album.read, asset.read, asset.view)");
+                case HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or KeyNotFoundException:
+                    // The exception is logged without the request headers, so the API key never reaches the logs
+                    _logger.LogWarning(ex, "Failed to {Action}", action);
+                    return StatusCode(502, "Could not get a valid answer from Immich");
+                default:
+                    _logger.LogError(ex, "Failed to {Action}", action);
+                    return StatusCode(500, "Unexpected error while contacting Immich");
+            }
         }
 
         /// <summary>

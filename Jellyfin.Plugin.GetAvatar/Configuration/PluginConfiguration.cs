@@ -16,6 +16,8 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
             AvailableAvatars = new List<AvatarInfo>();
             UserAvatars = new List<UserAvatarMapping>();
             EnableAssignOnUserCreation = true;
+            ImmichUrl = string.Empty;
+            ImmichApiKey = string.Empty;
         }
 
         /// <summary>
@@ -42,5 +44,20 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets a value indicating whether users can import their Gravatar as profile image.
         /// </summary>
         public bool EnableGravatar { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the Immich album import is enabled.
+        /// </summary>
+        public bool EnableImmich { get; set; }
+
+        /// <summary>
+        /// Gets or sets the base URL of the Immich server used to import album photos as avatars.
+        /// </summary>
+        public string ImmichUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Immich API key. Stored in clear in the plugin configuration and never sent back to clients.
+        /// </summary>
+        public string ImmichApiKey { get; set; }
     }
 }

@@ -20,5 +20,20 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// Left unchanged when omitted, so clients that don't know this setting don't turn it off.
         /// </summary>
         public bool? EnableGravatar { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the Immich album import is enabled. Left unchanged when omitted.
+        /// </summary>
+        public bool? EnableImmich { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Immich server URL. Left unchanged when omitted.
+        /// </summary>
+        public string? ImmichUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Immich API key. Left unchanged when omitted or empty, so saving other settings never erases it.
+        /// </summary>
+        public string? ImmichApiKey { get; set; }
     }
 }
