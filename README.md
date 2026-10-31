@@ -37,6 +37,15 @@ You just have to add avatar images, click on "Choose file" and "Upload". The ima
 
 <img width="1744" height="1042" alt="image" src="https://github.com/user-attachments/assets/7b076ecf-8415-4d65-b65c-7b248bac2536" />
 
+### Import an Immich album
+
+You can import the photos of an [Immich](https://immich.app/) album as avatars. In Immich, create an API key with only the `album.read`, `asset.read` and `asset.view` permissions, then enter the server URL and the key in the plugin settings and click "Import from Immich".
+
+- Each album becomes a category. Re-importing only adds new photos, nothing is ever deleted.
+- Up to 500 photos are imported per album.
+- The imported photos are visible to every user.
+- The API key is stored unencrypted in the plugin configuration file.
+
 ## Avatar
 
 > [!TIP]
