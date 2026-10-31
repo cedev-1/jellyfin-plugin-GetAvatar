@@ -47,6 +47,8 @@ You can import the photos of an [Immich](https://immich.app/) album as avatars. 
 - The imported photos are visible to every user.
 - The API key is stored unencrypted in the plugin configuration file.
 
+> **TODO:** automatic sync of the imported albums (scheduled task / cron job). For now, use the "Sync Immich albums" button.
+
 ## Avatar
 
 > [!TIP]
