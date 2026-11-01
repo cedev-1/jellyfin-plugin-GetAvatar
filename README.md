@@ -37,17 +37,37 @@ You just have to add avatar images, click on "Choose file" and "Upload". The ima
 
 <img width="1744" height="1042" alt="image" src="https://github.com/user-attachments/assets/7b076ecf-8415-4d65-b65c-7b248bac2536" />
 
-### Import an Immich album
+### Immich integration
 
-You can import the photos of an [Immich](https://immich.app/) album as avatars. In Immich, create an API key with only the `album.read`, `asset.read` and `asset.view` permissions, then enter the server URL and the key in the plugin settings and click "Import from Immich".
+The plugin can use an [Immich](https://immich.app/) server to fill the avatar gallery and to set profile pictures. Enable "Enable Immich" in the plugin settings, enter the server URL and an API key under "Immich connection", then turn on the features you want.
 
-- Each album becomes a category. Re-importing only adds new photos, nothing is ever deleted.
+The API key only needs the permissions of the features you enable (create it in Immich, under the account settings):
+
+| Feature | Permissions needed on the API key |
+| --- | --- |
+| Album import and sync | `album.read`, `asset.read`, `asset.view` |
+| User profile pictures | `user.read`, `userProfileImage.read` |
+
+For both features, give the key all five permissions. The album permissions alone are not enough for the user links.
+
+**Album import and sync**
+
+- Click "Import from Immich" to import one or more albums. Each album becomes a category. Re-importing only adds new photos, nothing is ever deleted.
 - Click "Sync Immich albums" to fetch the photos added since to every album you imported. Photos removed from an album stay in the gallery.
 - Up to 500 photos are imported per album.
 - The imported photos are visible to every user.
-- The API key is stored unencrypted in the plugin configuration file.
 
-> **TODO:** automatic sync of the imported albums (scheduled task / cron job). For now, use the "Sync Immich albums" button.
+**User profile pictures**
+
+- Open "Immich users" and pick, for each Jellyfin user, their Immich user (or leave it empty).
+- Click "Sync Immich profile pictures" to apply the Immich profile picture of each linked user. A picture is only applied if it changed in Immich since the last sync, so a user who picked another avatar keeps it until their Immich picture changes. In that case the sync reports the user as "unchanged".
+- To get the Immich picture back for a user who picked another avatar, change their picture in Immich, or unlink and relink the user in "Immich users" (this resets what the plugin remembers).
+
+The API key is stored unencrypted in the plugin configuration file.
+
+> **TODO:**
+> - Automatic sync of the imported albums and profile pictures (scheduled task / cron job). For now, use the sync buttons.
+> - A "force sync" option for the user profile pictures, to re-apply the Immich picture even if it did not change.
 
 ## Avatar
 
