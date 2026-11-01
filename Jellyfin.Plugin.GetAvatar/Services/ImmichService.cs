@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.GetAvatar.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.GetAvatar.Services
@@ -202,6 +203,100 @@ namespace Jellyfin.Plugin.GetAvatar.Services
             return result;
         }
 
+        /// <summary>
+        /// Lists the users of the Immich server (needs the <c>user.read</c> permission).
+        /// </summary>
+        /// <returns>The Immich users.</returns>
+        /// <exception cref="InvalidOperationException">Immich is not configured.</exception>
+        /// <exception cref="HttpRequestException">Immich could not be reached or returned an error.</exception>
+        public async Task<List<ImmichUserInfo>> ListUsersAsync()
+        {
+            using var client = CreateClient(out var baseUrl);
+            using var response = await client.GetAsync(baseUrl + "/users").ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            var users = new List<ImmichUserInfo>();
+            foreach (var user in document.RootElement.EnumerateArray())
+            {
+                users.Add(new ImmichUserInfo
+                {
+                    Id = user.GetProperty("id").GetString() ?? string.Empty,
+                    Name = user.TryGetProperty("name", out var name) ? name.GetString() ?? string.Empty : string.Empty,
+                    Email = user.TryGetProperty("email", out var email) ? email.GetString() ?? string.Empty : string.Empty
+                });
+            }
+
+            return users;
+        }
+
+        /// <summary>
+        /// Applies the Immich profile picture of every linked user as their Jellyfin profile image,
+        /// but only when that picture changed in Immich since the last sync. A user who picked another
+        /// avatar keeps it until their Immich picture changes.
+        /// </summary>
+        /// <returns>The combined result.</returns>
+        /// <exception cref="InvalidOperationException">Immich is not configured.</exception>
+        /// <exception cref="HttpRequestException">Immich could not be reached or returned an error.</exception>
+        public async Task<ImmichProfileSyncResult> SyncProfilePicturesAsync()
+        {
+            await _importLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var result = new ImmichProfileSyncResult();
+                var mappings = Plugin.Config.ImmichUserMappings ?? new List<ImmichUserMapping>();
+                result.LinkedCount = mappings.Count;
+                if (mappings.Count == 0)
+                {
+                    return result;
+                }
+
+                using var client = CreateClient(out var baseUrl);
+                var changed = false;
+                foreach (var mapping in mappings.ToList())
+                {
+                    try
+                    {
+                        var image = await DownloadProfileImageAsync(client, baseUrl, mapping.ImmichUserId).ConfigureAwait(false);
+                        if (image == null)
+                        {
+                            result.NoPhotoCount++;
+                            continue;
+                        }
+
+                        var hash = AvatarService.ComputeHash(image.Value.Data);
+                        if (hash == mapping.LastSyncedHash)
+                        {
+                            result.UnchangedCount++;
+                            continue;
+                        }
+
+                        using var stream = new MemoryStream(image.Value.Data);
+                        await _avatarService.SetUserExternalAvatarAsync(Guid.Parse(mapping.UserId), stream, image.Value.Extension).ConfigureAwait(false);
+                        mapping.LastSyncedHash = hash;
+                        changed = true;
+                        result.UpdatedCount++;
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or InvalidDataException or TaskCanceledException or ArgumentException or FormatException)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync the Immich profile picture of user {UserId}", mapping.UserId);
+                        result.ErrorCount++;
+                    }
+                }
+
+                if (changed)
+                {
+                    Plugin.Instance?.SaveConfiguration();
+                }
+
+                return result;
+            }
+            finally
+            {
+                _importLock.Release();
+            }
+        }
+
         private static void RememberAlbum(string albumId)
         {
             var config = Plugin.Config;
@@ -263,7 +358,27 @@ namespace Jellyfin.Plugin.GetAvatar.Services
                 $"{baseUrl}/assets/{Uri.EscapeDataString(assetId)}/thumbnail?size=preview",
                 HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
+            return await ReadImageAsync(response).ConfigureAwait(false);
+        }
 
+        private static async Task<(byte[] Data, string Extension)?> DownloadProfileImageAsync(HttpClient client, string baseUrl, string immichUserId)
+        {
+            using var response = await client.GetAsync(
+                $"{baseUrl}/users/{Uri.EscapeDataString(immichUserId)}/profile-image",
+                HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+
+            // Immich answers 404 when the user has no profile image
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            response.EnsureSuccessStatusCode();
+            return await ReadImageAsync(response).ConfigureAwait(false);
+        }
+
+        private static async Task<(byte[] Data, string Extension)> ReadImageAsync(HttpResponseMessage response)
+        {
             var extension = response.Content.Headers.ContentType?.MediaType switch
             {
                 "image/jpeg" => ".jpg",

@@ -114,19 +114,44 @@
             </span></span>
           </div>
           <div class="feature-toggle-row">
-            <span class="feature-toggle-label-text">Enable Immich album import</span>
+            <span class="feature-toggle-label-text">Enable Immich</span>
             <label class="switch">
               <input type="checkbox" id="enableImmich" />
               <span class="switch-slider"></span>
             </label>
             <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
-              <strong>Immich album import</strong><br>
-              Lets you import the photos of an Immich album as avatars.<br><br>
-              Create an API key in Immich with only the <em>album.read</em>, <em>asset.read</em> and <em>asset.view</em> permissions.
-              The key is stored unencrypted in the plugin configuration.
+              <strong>Immich integration</strong><br>
+              Connects the plugin to an Immich server. Then choose below which features you want.<br><br>
+              The API key is stored unencrypted in the plugin configuration.
             </span></span>
           </div>
-          <details id="immichSettings" class="category-details" style="display:none;margin-bottom:2em;">
+          <div id="immichFeatures" style="display:none;margin-left:1.5em;">
+            <div class="feature-toggle-row">
+              <span class="feature-toggle-label-text">Album import and sync</span>
+              <label class="switch">
+                <input type="checkbox" id="enableImmichAlbums" />
+                <span class="switch-slider"></span>
+              </label>
+              <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+                <strong>Album import and sync</strong><br>
+                Import the photos of Immich albums as avatars, and sync the photos added since.<br><br>
+                Needs the <em>album.read</em>, <em>asset.read</em> and <em>asset.view</em> permissions on the API key.
+              </span></span>
+            </div>
+            <div class="feature-toggle-row">
+              <span class="feature-toggle-label-text">User profile pictures</span>
+              <label class="switch">
+                <input type="checkbox" id="enableImmichUsers" />
+                <span class="switch-slider"></span>
+              </label>
+              <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
+                <strong>User profile pictures</strong><br>
+                Link Jellyfin users to Immich users and sync their Immich profile picture.<br><br>
+                Needs the <em>user.read</em> and <em>userProfileImage.read</em> permissions on the API key.
+              </span></span>
+            </div>
+          </div>
+          <details id="immichSettings" class="category-details" style="display:none;margin-bottom:0.6em;">
             <summary class="category-summary">
               <span class="material-icons" style="font-size:1em;vertical-align:middle;">photo_library</span>
               Immich connection
@@ -137,6 +162,20 @@
               <button id="testImmichButton" is="emby-button" type="button" class="raised button-alt">Test</button>
               <button id="saveImmichButton" is="emby-button" type="button" class="raised button-submit">Save</button>
               <span id="immichStatus" style="flex-basis:100%;opacity:0.8;"></span>
+            </div>
+          </details>
+          <details id="immichUsersSettings" class="category-details" style="display:none;margin-bottom:2em;">
+            <summary class="category-summary">
+              <span class="material-icons" style="font-size:1em;vertical-align:middle;">people</span>
+              Immich users
+            </summary>
+            <div id="immichMapping" style="font-size:0.9em;">
+              <p style="margin:0 0 0.8em 0;opacity:0.8;">Link each Jellyfin user to their Immich user to use their Immich profile picture.</p>
+              <div id="immichMappingTable"></div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.6em;align-items:center;margin-top:0.8em;">
+                <button id="saveImmichMappingButton" is="emby-button" type="button" class="raised button-submit">Save links</button>
+                <span id="immichMappingStatus" style="opacity:0.8;"></span>
+              </div>
             </div>
           </details>
           <div class="feature-toggle-row">
@@ -153,10 +192,16 @@
             <button id="syncImmichButton" is="emby-button" type="button" class="raised button-alt assign-missing-button">
               Sync Immich albums
             </button>
+            <button id="syncImmichProfilesButton" is="emby-button" type="button" class="raised button-alt assign-missing-button">
+              Sync Immich profile pictures
+            </button>
             <span class="feature-info-icon">ⓘ<span class="feature-tooltip">
               <strong>Sync Immich albums</strong><br>
               Fetches the photos added since the last import to every Immich album you imported.<br><br>
-              Nothing is ever deleted: photos removed from an album stay in the gallery.
+              Nothing is ever deleted: photos removed from an album stay in the gallery.<br><br>
+              <strong>Sync Immich profile pictures</strong><br>
+              Applies the Immich profile picture of every linked user, only if it changed in Immich since the last sync.
+              A user who picked another avatar keeps it until their Immich picture changes.
             </span></span>
           </div>
         </div>

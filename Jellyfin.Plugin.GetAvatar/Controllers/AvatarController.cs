@@ -558,6 +558,8 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 enableAssignOnUserCreation = Plugin.Config.EnableAssignOnUserCreation,
                 enableGravatar = Plugin.Config.EnableGravatar,
                 enableImmich = Plugin.Config.EnableImmich,
+                enableImmichAlbums = Plugin.Config.EnableImmichAlbums,
+                enableImmichUsers = Plugin.Config.EnableImmichUsers,
                 immichUrl = Plugin.Config.ImmichUrl,
                 immichConfigured = !string.IsNullOrEmpty(Plugin.Config.ImmichUrl) && !string.IsNullOrEmpty(Plugin.Config.ImmichApiKey)
             });
@@ -594,6 +596,16 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             if (request.EnableImmich.HasValue)
             {
                 config.EnableImmich = request.EnableImmich.Value;
+            }
+
+            if (request.EnableImmichAlbums.HasValue)
+            {
+                config.EnableImmichAlbums = request.EnableImmichAlbums.Value;
+            }
+
+            if (request.EnableImmichUsers.HasValue)
+            {
+                config.EnableImmichUsers = request.EnableImmichUsers.Value;
             }
 
             if (immichUrl != null)
@@ -645,7 +657,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         [Authorize(Policy = "RequiresElevation")]
         public async Task<IActionResult> GetImmichAlbums()
         {
-            if (!Plugin.Config.EnableImmich)
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichAlbums)
             {
                 return StatusCode(403, "Immich integration is disabled");
             }
@@ -670,7 +682,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         [Authorize(Policy = "RequiresElevation")]
         public async Task<IActionResult> ImportImmichAlbum([FromBody] ImportImmichAlbumRequest request)
         {
-            if (!Plugin.Config.EnableImmich)
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichAlbums)
             {
                 return StatusCode(403, "Immich integration is disabled");
             }
@@ -707,7 +719,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         [Authorize(Policy = "RequiresElevation")]
         public async Task<IActionResult> SyncImmichAlbums()
         {
-            if (!Plugin.Config.EnableImmich)
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichAlbums)
             {
                 return StatusCode(403, "Immich integration is disabled");
             }
@@ -731,6 +743,126 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
             }
         }
 
+        /// <summary>
+        /// Gets the Immich users available for linking.
+        /// </summary>
+        /// <returns>List of Immich users.</returns>
+        [HttpGet("ImmichUsers")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> GetImmichUsers()
+        {
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichUsers)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            try
+            {
+                var users = await _immichService.ListUsersAsync().ConfigureAwait(false);
+                return Ok(users.Select(u => new { id = u.Id, name = u.Name, email = u.Email }));
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "list the Immich users");
+            }
+        }
+
+        /// <summary>
+        /// Gets the Jellyfin users with the Immich user each one is linked to.
+        /// </summary>
+        /// <returns>List of Jellyfin users and their links.</returns>
+        [HttpGet("ImmichUserMappings")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult GetImmichUserMappings()
+        {
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichUsers)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            var mappings = Plugin.Config.ImmichUserMappings ?? new List<Configuration.ImmichUserMapping>();
+            return Ok(GetAllUsers().OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase).Select(u => new
+            {
+                userId = u.Id.ToString(),
+                username = u.Username,
+                immichUserId = mappings.FirstOrDefault(m => m.UserId == u.Id.ToString())?.ImmichUserId ?? string.Empty
+            }));
+        }
+
+        /// <summary>
+        /// Saves the links between Jellyfin users and Immich users. Replaces the whole list.
+        /// </summary>
+        /// <param name="request">The links.</param>
+        /// <returns>Status of operation.</returns>
+        [HttpPost("ImmichUserMappings")]
+        [Authorize(Policy = "RequiresElevation")]
+        public IActionResult SaveImmichUserMappings([FromBody] ImmichUserMappingsRequest request)
+        {
+            if (Plugin.Instance == null)
+            {
+                return StatusCode(500, "Plugin not initialized");
+            }
+
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichUsers)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            var previous = Plugin.Config.ImmichUserMappings ?? new List<Configuration.ImmichUserMapping>();
+            var updated = new List<Configuration.ImmichUserMapping>();
+            foreach (var item in request.Mappings.Where(m => !string.IsNullOrWhiteSpace(m.ImmichUserId)))
+            {
+                if (!Guid.TryParse(item.UserId, out var userId))
+                {
+                    return BadRequest("Invalid user ID format");
+                }
+
+                // A link that did not change keeps its last-synced hash, so the user's own avatar choice is not overwritten
+                var existing = previous.FirstOrDefault(m => m.UserId == userId.ToString() && m.ImmichUserId == item.ImmichUserId.Trim());
+                updated.Add(new Configuration.ImmichUserMapping
+                {
+                    UserId = userId.ToString(),
+                    ImmichUserId = item.ImmichUserId.Trim(),
+                    LastSyncedHash = existing?.LastSyncedHash ?? string.Empty
+                });
+            }
+
+            Plugin.Config.ImmichUserMappings = updated;
+            Plugin.Instance.SaveConfiguration();
+            return Ok(new { message = "Links saved", linkedCount = updated.Count });
+        }
+
+        /// <summary>
+        /// Applies the Immich profile pictures of the linked users, when they changed since the last sync.
+        /// </summary>
+        /// <returns>Combined result.</returns>
+        [HttpPost("SyncImmichProfiles")]
+        [Authorize(Policy = "RequiresElevation")]
+        public async Task<IActionResult> SyncImmichProfiles()
+        {
+            if (!Plugin.Config.EnableImmich || !Plugin.Config.EnableImmichUsers)
+            {
+                return StatusCode(403, "Immich integration is disabled");
+            }
+
+            try
+            {
+                var result = await _immichService.SyncProfilePicturesAsync().ConfigureAwait(false);
+                return Ok(new
+                {
+                    linkedCount = result.LinkedCount,
+                    updatedCount = result.UpdatedCount,
+                    unchangedCount = result.UnchangedCount,
+                    noPhotoCount = result.NoPhotoCount,
+                    errorCount = result.ErrorCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return ImmichError(ex, "synchronize the Immich profile pictures");
+            }
+        }
+
         private IActionResult ImmichError(Exception ex, string action)
         {
             switch (ex)
@@ -740,7 +872,7 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
                 case HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized }:
                     return StatusCode(502, "Immich rejected the API key");
                 case HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden }:
-                    return StatusCode(502, "The Immich API key lacks a required permission (album.read, asset.read, asset.view)");
+                    return StatusCode(502, "The Immich API key lacks a required permission (albums need album.read, asset.read, asset.view; user profile pictures need user.read, userProfileImage.read)");
                 case HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or KeyNotFoundException:
                     // The exception is logged without the request headers, so the API key never reaches the logs
                     _logger.LogWarning(ex, "Failed to {Action}", action);

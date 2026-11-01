@@ -16,9 +16,12 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
             AvailableAvatars = new List<AvatarInfo>();
             UserAvatars = new List<UserAvatarMapping>();
             EnableAssignOnUserCreation = true;
+            // Albums stay on by default so the import keeps working for installs that enabled Immich before this option existed
+            EnableImmichAlbums = true;
             ImmichUrl = string.Empty;
             ImmichApiKey = string.Empty;
             ImmichSyncAlbumIds = new List<string>();
+            ImmichUserMappings = new List<ImmichUserMapping>();
         }
 
         /// <summary>
@@ -52,6 +55,16 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         public bool EnableImmich { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the Immich album import and sync is enabled (when Immich is enabled).
+        /// </summary>
+        public bool EnableImmichAlbums { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the Jellyfin ↔ Immich user links and profile picture sync is enabled (when Immich is enabled).
+        /// </summary>
+        public bool EnableImmichUsers { get; set; }
+
+        /// <summary>
         /// Gets or sets the base URL of the Immich server used to import album photos as avatars.
         /// </summary>
         public string ImmichUrl { get; set; }
@@ -65,5 +78,10 @@ namespace Jellyfin.Plugin.GetAvatar.Configuration
         /// Gets or sets the IDs of the Immich albums imported so far, re-imported by the "Sync" button.
         /// </summary>
         public List<string> ImmichSyncAlbumIds { get; set; }
+
+        /// <summary>
+        /// Gets or sets the links between Jellyfin users and Immich users, used to sync profile pictures.
+        /// </summary>
+        public List<ImmichUserMapping> ImmichUserMappings { get; set; }
     }
 }

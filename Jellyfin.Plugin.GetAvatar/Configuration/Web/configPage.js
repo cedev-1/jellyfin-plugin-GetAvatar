@@ -409,6 +409,9 @@ export default function (view) {
   const enableGravatarSwitch = view.querySelector("#enableGravatar");
   const assignMissingButton = view.querySelector("#assignMissingButton");
   const enableImmichSwitch = view.querySelector("#enableImmich");
+  const enableImmichAlbumsSwitch = view.querySelector("#enableImmichAlbums");
+  const enableImmichUsersSwitch = view.querySelector("#enableImmichUsers");
+  const immichUsersSettings = view.querySelector("#immichUsersSettings");
   const immichSettings = view.querySelector("#immichSettings");
   const immichUrlInput = view.querySelector("#immichUrl");
   const immichApiKeyInput = view.querySelector("#immichApiKey");
@@ -418,12 +421,18 @@ export default function (view) {
 
   let selectedFiles = [];
 
-  // The connection settings and the import button only show when Immich is enabled
+  // What shows depends on the master switch and on the two feature switches
   function applyImmichVisibility() {
     const enabled = enableImmichSwitch.checked;
-    immichSettings.style.display = enabled ? "" : "none";
-    view.querySelector("#importImmichButton").style.display = enabled ? "" : "none";
-    view.querySelector("#syncImmichRow").style.display = enabled ? "" : "none";
+    const albums = enabled && enableImmichAlbumsSwitch.checked;
+    const users = enabled && enableImmichUsersSwitch.checked;
+    view.querySelector("#immichFeatures").style.display = enabled ? "block" : "none";
+    immichSettings.style.display = enabled ? "block" : "none";
+    immichUsersSettings.style.display = users ? "block" : "none";
+    view.querySelector("#importImmichButton").style.display = albums ? "" : "none";
+    view.querySelector("#syncImmichButton").style.display = albums ? "" : "none";
+    view.querySelector("#syncImmichProfilesButton").style.display = users ? "" : "none";
+    view.querySelector("#syncImmichRow").style.display = albums || users ? "" : "none";
   }
 
   // ApiClient.fetch rejects with the Response itself on HTTP errors
@@ -446,6 +455,8 @@ export default function (view) {
         enableAssignOnCreationSwitch.checked = settings.enableAssignOnUserCreation;
         enableGravatarSwitch.checked = settings.enableGravatar;
         enableImmichSwitch.checked = settings.enableImmich;
+        enableImmichAlbumsSwitch.checked = settings.enableImmichAlbums;
+        enableImmichUsersSwitch.checked = settings.enableImmichUsers;
         applyImmichVisibility();
         immichUrlInput.value = settings.immichUrl || "";
         immichApiKeyInput.value = "";
@@ -464,6 +475,8 @@ export default function (view) {
       enableAssignOnUserCreation: enableAssignOnCreationSwitch.checked,
       enableGravatar: enableGravatarSwitch.checked,
       enableImmich: enableImmichSwitch.checked,
+      enableImmichAlbums: enableImmichAlbumsSwitch.checked,
+      enableImmichUsers: enableImmichUsersSwitch.checked,
     };
     if (includeImmich === true) {
       payload.immichUrl = immichUrlInput.value;
@@ -1260,9 +1273,128 @@ export default function (view) {
     e.stopPropagation();
     syncImmichAlbums();
   });
-  enableImmichSwitch.addEventListener("change", function () {
-    applyImmichVisibility();
-    saveSettings();
+  // --- Immich user links (profile picture sync) ------------------------------
+
+  const saveImmichMappingButton = view.querySelector("#saveImmichMappingButton");
+  const immichMappingTable = view.querySelector("#immichMappingTable");
+  const immichMappingStatus = view.querySelector("#immichMappingStatus");
+  const syncImmichProfilesButton = view.querySelector("#syncImmichProfilesButton");
+
+  const SELECT_STYLE =
+    "width:18em;padding:0.4em;border-radius:4px;color:inherit;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);";
+  const OPTION_STYLE = "background:#1a1a1a;color:#fff;";
+
+  async function loadImmichMapping() {
+    immichMappingStatus.textContent = "Loading...";
+    try {
+      const [immichUsers, jellyfinUsers] = await Promise.all([
+        ApiClient.fetch({ url: ApiClient.getUrl("/GetAvatar/ImmichUsers"), type: "GET", dataType: "json" }),
+        ApiClient.fetch({ url: ApiClient.getUrl("/GetAvatar/ImmichUserMappings"), type: "GET", dataType: "json" }),
+      ]);
+
+      const options = ['<option value="" style="' + OPTION_STYLE + '">Not linked</option>']
+        .concat(
+          immichUsers.map(function (user) {
+            const label = user.email ? user.name + " (" + user.email + ")" : user.name;
+            return '<option value="' + escapeHtml(user.id) + '" style="' + OPTION_STYLE + '">' + escapeHtml(label) + "</option>";
+          })
+        )
+        .join("");
+
+      immichMappingTable.innerHTML = jellyfinUsers
+        .map(function (user) {
+          return `
+        <div style="display:flex;align-items:center;gap:0.8em;margin-bottom:0.5em;">
+          <span style="width:10em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(user.username)}</span>
+          <select class="immich-link-select" data-user-id="${escapeHtml(user.userId)}" style="${SELECT_STYLE}">${options}</select>
+        </div>`;
+        })
+        .join("");
+
+      // Select the current link of each user; a link to an Immich user that no longer exists falls back to "Not linked"
+      jellyfinUsers.forEach(function (user) {
+        const select = immichMappingTable.querySelector('.immich-link-select[data-user-id="' + user.userId + '"]');
+        if (select) select.value = user.immichUserId || "";
+      });
+
+      immichMappingStatus.textContent = "";
+    } catch (error) {
+      immichMappingTable.innerHTML = "";
+      immichMappingStatus.textContent = "Failed: " + (await errorMessage(error, "Could not load the users"));
+    }
+  }
+
+  async function saveImmichMapping() {
+    const mappings = Array.from(immichMappingTable.querySelectorAll(".immich-link-select")).map(function (select) {
+      return { userId: select.getAttribute("data-user-id"), immichUserId: select.value };
+    });
+
+    saveImmichMappingButton.disabled = true;
+    try {
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/ImmichUserMappings"),
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ mappings: mappings }),
+        dataType: "json",
+      });
+      immichMappingStatus.textContent = result.linkedCount + " user(s) linked.";
+    } catch (error) {
+      immichMappingStatus.textContent = "Failed: " + (await errorMessage(error, "Could not save the links"));
+    } finally {
+      saveImmichMappingButton.disabled = false;
+    }
+  }
+
+  async function syncImmichProfiles() {
+    syncImmichProfilesButton.disabled = true;
+    Dashboard.showLoadingMsg();
+    try {
+      const result = await ApiClient.fetch({
+        url: ApiClient.getUrl("/GetAvatar/SyncImmichProfiles"),
+        type: "POST",
+        dataType: "json",
+      });
+      Dashboard.hideLoadingMsg();
+
+      let message;
+      if (result.linkedCount === 0) {
+        message = 'No user is linked yet. Open "Immich connection" and use "Link users" first.';
+      } else {
+        message = result.updatedCount + " updated, " + result.unchangedCount + " unchanged, " + result.noPhotoCount + " without a photo in Immich";
+        if (result.errorCount > 0) message += ", " + result.errorCount + " failed";
+        message += ".";
+      }
+      Dashboard.alert({ message: message, title: "Immich profile pictures" });
+    } catch (error) {
+      Dashboard.hideLoadingMsg();
+      Dashboard.alert({ message: await errorMessage(error, "Sync failed"), title: "Error" });
+    } finally {
+      syncImmichProfilesButton.disabled = false;
+    }
+  }
+
+  // The table is reloaded each time the menu opens, so it reflects Immich and Jellyfin as they are now
+  immichUsersSettings.addEventListener("toggle", function () {
+    if (immichUsersSettings.open) {
+      loadImmichMapping();
+    }
+  });
+  saveImmichMappingButton.addEventListener("click", function (e) {
+    e.preventDefault();
+    saveImmichMapping();
+  });
+  syncImmichProfilesButton.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    syncImmichProfiles();
+  });
+
+  [enableImmichSwitch, enableImmichAlbumsSwitch, enableImmichUsersSwitch].forEach(function (toggle) {
+    toggle.addEventListener("change", function () {
+      applyImmichVisibility();
+      saveSettings();
+    });
   });
   saveImmichButton.addEventListener("click", function (e) {
     e.preventDefault();

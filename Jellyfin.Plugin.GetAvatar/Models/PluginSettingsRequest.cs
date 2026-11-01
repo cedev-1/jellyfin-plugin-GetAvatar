@@ -27,6 +27,16 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         public bool? EnableImmich { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the Immich album import and sync is enabled. Left unchanged when omitted.
+        /// </summary>
+        public bool? EnableImmichAlbums { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the Jellyfin ↔ Immich user links and profile picture sync is enabled. Left unchanged when omitted.
+        /// </summary>
+        public bool? EnableImmichUsers { get; set; }
+
+        /// <summary>
         /// Gets or sets the Immich server URL. Left unchanged when omitted.
         /// </summary>
         public string? ImmichUrl { get; set; }
