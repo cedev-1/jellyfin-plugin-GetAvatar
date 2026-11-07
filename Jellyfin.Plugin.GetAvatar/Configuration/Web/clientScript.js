@@ -9,6 +9,13 @@
     let avatars = [];
     let selectedAvatarId = null;
     let targetUserId = null;
+    let tvFocus = null;
+
+    // TV clients (Jellyfin TV layout, LG webOS, Samsung Tizen) are driven by a remote control.
+    function isTvLayout() {
+        return document.documentElement.classList.contains('layout-tv') ||
+            /Web0S|webOS|Tizen/i.test(navigator.userAgent);
+    }
 
     const GRAVATAR_ERRORS = {
         400: 'Please enter a valid email address.',
@@ -32,6 +39,18 @@
                     flex-direction: column;
                 }
 
+                #${CONFIG.modalId} .getavatar-tv-focus {
+                    outline: 4px solid #fff;
+                    outline-offset: 2px;
+                    border-radius: 8px;
+                    background: rgba(255,255,255,0.18);
+                }
+
+                #${CONFIG.modalId} .category-link.getavatar-tv-active {
+                    background: rgba(255,255,255,0.35) !important;
+                    font-weight: 700;
+                }
+
                 @media all and (max-width: 80em), all and (max-height: 45em) {
                     #${CONFIG.modalId} .getavatar-dialog {
                         max-width: none;
@@ -48,6 +67,7 @@
                         <h3 class="formDialogHeaderTitle">Choose Your Avatar</h3>
                     </div>
                     <div class="formDialogContent" style="padding:2em;flex:1;display:flex;flex-direction:column;min-height:0;">
+                        <p id="getAvatarTvHint" style="display:none;opacity:0.8;margin:0 0 1em 0;flex-shrink:0;">OK: choose avatar &middot; &uarr; categories, &larr; &rarr; to switch &middot; Back: close</p>
                         <div id="avatarCategoryList" style="display:none;flex-wrap:wrap;gap:0.5em;margin-bottom:1.5em;flex-shrink:0;"></div>
                         <div id="avatarGridContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:1em;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-right:0.5em;"></div>
                         <div id="gravatarSection" style="display:none;align-items:center;flex-wrap:wrap;gap:1em;flex-shrink:0;padding-top:1em;border-top:1px solid rgba(255,255,255,0.1);margin-top:1em;">
@@ -80,6 +100,8 @@
         modal.querySelector('.dialogContainer').onclick = function(e) {
             if (e.target === this) closeModal();
         };
+
+        window.addEventListener('keydown', onTvKeyDown, true);
     }
 
     function openModal() {
@@ -98,6 +120,9 @@
             document.body.style.position = 'fixed';
             document.body.style.width = '100%';
             
+            tvFocus = null;
+            document.getElementById('getAvatarTvHint').style.display = isTvLayout() ? 'block' : 'none';
+
             loadAvatars();
             loadFeatures();
         }
@@ -209,7 +234,7 @@
             var categoryId = 'avatar-category-' + (category || 'uncategorized');
 
             if (hasMultipleCategories && category) {
-                html += '<div id="' + escapeHtml(categoryId) + '" style="grid-column:1/-1;margin-top:1em;margin-bottom:0.3em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">';
+                html += '<div id="' + escapeHtml(categoryId) + '" data-category-header="' + escapeHtml(category) + '" style="grid-column:1/-1;margin-top:1em;margin-bottom:0.3em;padding-bottom:0.3em;border-bottom:1px solid rgba(255,255,255,0.1);">';
                 html += '<h3 style="margin:0;font-size:1em;font-weight:600;">' + escapeHtml(category) + '</h3>';
                 html += '</div>';
             } else if (hasMultipleCategories) {
@@ -218,9 +243,9 @@
 
             categoryAvatars.forEach(function(avatar) {
                 html += `
-            <div class="avatar-option" data-id="${escapeHtml(avatar.Id)}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
+            <div class="avatar-option" data-id="${escapeHtml(avatar.Id)}" data-category="${escapeHtml(category)}" style="cursor:pointer;text-align:center;padding:0.5em;border:2px solid transparent;border-radius:8px;">
                 <div class="getavatar-cardbox">
-                    <img src="${escapeHtml(ApiClient.getUrl('/GetAvatar/Image/' + avatar.Id))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
+                    <img ${isTvLayout() ? 'data-src' : 'src'}="${escapeHtml(ApiClient.getUrl('/GetAvatar/Image/' + avatar.Id))}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;" />
                     <div style="font-size:0.8em;margin-top:0.5em;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(avatar.Name)}</div>
                 </div>
             </div>
@@ -242,6 +267,138 @@
                 document.getElementById('applyAvatarBtn').disabled = false;
             };
         });
+
+        if (isTvLayout()) {
+            // On TVs show one category at a time: only its images are loaded.
+            tvShowCategory(hasMultipleCategories ? categories[0] : null);
+            tvSetFocus(tvFirstAvatar());
+        }
+    }
+
+    // --- Remote control support (TV layout) ---------------------------------
+    // The picker is a plain overlay, so Jellyfin's spatial navigation keeps moving
+    // the focus on the page behind it. On TVs the arrow, OK and Back keys are handled
+    // here while the picker is open.
+
+    function tvIsOpen() {
+        const container = document.querySelector('#' + CONFIG.modalId + ' .dialogContainer');
+        return !!container && container.style.display !== 'none';
+    }
+
+    function tvShowCategory(category) {
+        const container = document.getElementById('avatarGridContainer');
+        container.querySelectorAll('[data-category-header]').forEach(function(el) {
+            el.style.display = (category === null || el.dataset.categoryHeader === category) ? '' : 'none';
+        });
+        container.querySelectorAll('.avatar-option').forEach(function(el) {
+            const visible = category === null || el.dataset.category === category;
+            el.style.display = visible ? '' : 'none';
+            const img = el.querySelector('img');
+            if (visible && img && !img.getAttribute('src') && img.dataset.src) {
+                img.setAttribute('src', img.dataset.src);
+            }
+        });
+        document.querySelectorAll('#avatarCategoryList .category-link').forEach(function(btn) {
+            btn.classList.toggle('getavatar-tv-active', btn.getAttribute('data-target') === 'avatar-category-' + category);
+        });
+        container.scrollTop = 0;
+    }
+
+    function tvCandidates() {
+        const dialog = document.querySelector('#' + CONFIG.modalId + ' .dialogContainer');
+        const result = [];
+        // The header close button is left out: Back closes the picker.
+        dialog.querySelectorAll('.category-link, .avatar-option, button:not(.btnCancel)').forEach(function(el) {
+            if (el.disabled) return;
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden') {
+                result.push(el);
+            }
+        });
+        return result;
+    }
+
+    function tvFirstAvatar() {
+        const list = tvCandidates();
+        return list.find(function(el) { return el.classList.contains('avatar-option'); }) || list[0] || null;
+    }
+
+    function tvSetFocus(el) {
+        if (tvFocus) tvFocus.classList.remove('getavatar-tv-focus');
+        tvFocus = el;
+        if (!el) return;
+        el.classList.add('getavatar-tv-focus');
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+        el.focus({ preventScroll: true });
+        el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    function tvMove(direction) {
+        const list = tvCandidates();
+        if (!tvFocus || list.indexOf(tvFocus) < 0) {
+            tvSetFocus(tvFirstAvatar());
+            return;
+        }
+        const from = tvFocus.getBoundingClientRect();
+        const fromX = from.left + from.width / 2;
+        const fromY = from.top + from.height / 2;
+        const horizontal = direction === 'left' || direction === 'right';
+        let best = null;
+        let bestDistance = Infinity;
+        list.forEach(function(el) {
+            if (el === tvFocus) return;
+            const rect = el.getBoundingClientRect();
+            const dx = rect.left + rect.width / 2 - fromX;
+            const dy = rect.top + rect.height / 2 - fromY;
+            const inDirection = direction === 'left' ? dx < -2 : direction === 'right' ? dx > 2 : direction === 'up' ? dy < -2 : dy > 2;
+            if (!inDirection) return;
+            // Left/right stay on the same row
+            if (horizontal && (rect.bottom <= from.top || rect.top >= from.bottom)) return;
+            const distance = horizontal ? Math.abs(dx) + 3 * Math.abs(dy) : Math.abs(dy) + 3 * Math.abs(dx);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = el;
+            }
+        });
+        if (best) tvSetFocus(best);
+    }
+
+    function tvActivate() {
+        if (!tvFocus) {
+            tvSetFocus(tvFirstAvatar());
+            return;
+        }
+        if (tvFocus.classList.contains('category-link')) {
+            tvShowCategory(tvFocus.getAttribute('data-target').replace('avatar-category-', ''));
+            tvSetFocus(tvFirstAvatar());
+            return;
+        }
+        if (tvFocus.classList.contains('avatar-option')) {
+            // One press of OK selects and applies the avatar
+            tvFocus.click();
+            applyAvatar();
+            return;
+        }
+        tvFocus.click();
+    }
+
+    function onTvKeyDown(e) {
+        if (!isTvLayout() || !tvIsOpen()) return;
+        const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+        const directions = { 37: 'left', 38: 'up', 39: 'right', 40: 'down' };
+        const direction = directions[e.keyCode];
+        if (direction && !(typing && (e.keyCode === 37 || e.keyCode === 39))) {
+            tvMove(direction);
+        } else if (e.keyCode === 13 && !typing) {
+            tvActivate();
+        } else if (e.keyCode === 461 || e.keyCode === 10009 || e.keyCode === 27) {
+            // Back: LG webOS (461), Samsung Tizen (10009), Escape
+            closeModal();
+        } else {
+            return;
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
     }
 
     function refreshProfileImages(successMessage) {

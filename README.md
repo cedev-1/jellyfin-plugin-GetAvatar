@@ -31,6 +31,10 @@ User profile page will have a new button "Choose from Gallery".
 
 <img width="1742" height="1040" alt="image" src="https://github.com/user-attachments/assets/64dd4f8f-3062-4dd4-bed0-1ff8de069958" />
 
+### On TV (remote control)
+
+On TV clients (Jellyfin TV layout, LG webOS, Samsung Tizen) the picker can be used with the remote: arrows move the selection, OK on an avatar sets it, Up reaches the category buttons (Left/Right to switch, OK to open one), Back closes the picker. Only one category is shown at a time, and only its images are loaded.
+
 ## Plugin Configuration
 
 You just have to add avatar images, click on "Choose file" and "Upload". The image will be added to the collection of images. You can also remove images by clicking on the cross icon.
