@@ -12,6 +12,12 @@ namespace Jellyfin.Plugin.GetAvatar
     /// </summary>
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
+        /// <summary>
+        /// The version of the client API documented in API.md, returned by <c>GET /GetAvatar/Features</c>.
+        /// It is only incremented on breaking changes to the documented routes.
+        /// </summary>
+        public const int ApiVersion = 1;
+
         private readonly ILogger<Plugin> _logger;
 
         /// <summary>
