@@ -33,7 +33,7 @@ User profile page will have a new button "Choose from Gallery".
 
 ### On TV (remote control)
 
-On TV clients (Jellyfin TV layout, LG webOS, Samsung Tizen) the picker can be used with the remote: arrows move the selection, OK on an avatar sets it, Up reaches the category buttons (Left/Right to switch, OK to open one), Back closes the picker. Only one category is shown at a time, and only its images are loaded.
+On TV clients (Jellyfin TV layout, LG webOS, Samsung Tizen) the picker can be used with the remote: arrows move the selection, OK on an avatar sets it, Up reaches the category buttons (Left/Right to switch, OK to open one), Back closes the picker. Only one category is shown at a time, and only its images are loaded; avatars without a category are under "Other".
 
 ## Plugin Configuration
 

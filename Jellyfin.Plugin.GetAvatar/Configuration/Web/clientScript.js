@@ -207,9 +207,11 @@
             if (hasMultipleCategories) {
                 var categoryHtml = '';
                 categories.forEach(function(category) {
-                    if (!category) return;
-                    var categoryId = 'avatar-category-' + category;
-                    categoryHtml += '<button class="category-link raised" data-target="' + escapeHtml(categoryId) + '" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:0.4em 0.9em;color:inherit;cursor:pointer;transition:all 0.2s;font-size:0.85em;white-space:nowrap;">' + escapeHtml(category) + '</button>';
+                    // On TVs only one category is shown at a time, so uncategorized avatars
+                    // need their own button to be reachable again.
+                    if (!category && !isTvLayout()) return;
+                    var categoryId = 'avatar-category-' + (category || 'uncategorized');
+                    categoryHtml += '<button class="category-link raised" data-target="' + escapeHtml(categoryId) + '" data-category="' + escapeHtml(category) + '" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:0.4em 0.9em;color:inherit;cursor:pointer;transition:all 0.2s;font-size:0.85em;white-space:nowrap;">' + escapeHtml(category || 'Other') + '</button>';
                 });
                 categoryList.innerHTML = categoryHtml;
                 categoryList.style.display = 'flex';
@@ -299,7 +301,7 @@
             }
         });
         document.querySelectorAll('#avatarCategoryList .category-link').forEach(function(btn) {
-            btn.classList.toggle('getavatar-tv-active', btn.getAttribute('data-target') === 'avatar-category-' + category);
+            btn.classList.toggle('getavatar-tv-active', btn.dataset.category === category);
         });
         container.scrollTop = 0;
     }
@@ -369,7 +371,7 @@
             return;
         }
         if (tvFocus.classList.contains('category-link')) {
-            tvShowCategory(tvFocus.getAttribute('data-target').replace('avatar-category-', ''));
+            tvShowCategory(tvFocus.dataset.category);
             tvSetFocus(tvFirstAvatar());
             return;
         }
