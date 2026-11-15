@@ -83,6 +83,8 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// </summary>
         /// <returns>List of available avatars.</returns>
         [HttpGet("Avatars")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         public ActionResult<IEnumerable<object>> GetAvatars()
         {
             try
@@ -116,6 +118,9 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// <returns>The avatar image.</returns>
         [HttpGet("Image/{avatarId}")]
         [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         public IActionResult GetAvatarImage(string avatarId)
         {
             try
@@ -280,6 +285,11 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// <param name="request">The request containing the avatar ID.</param>
         /// <returns>Status of operation.</returns>
         [HttpPost("SetAvatar")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> SetUserAvatar([FromBody] SetAvatarRequest request)
         {
             try
@@ -311,15 +321,18 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         }
 
         /// <summary>
-        /// Gets the optional features available to the current user.
+        /// Gets the optional features available to the current user, the client API version and the plugin version.
         /// </summary>
-        /// <returns>The enabled features.</returns>
+        /// <returns>The enabled features and the versions.</returns>
         [HttpGet("Features")]
+        [ProducesResponseType(typeof(GetAvatarFeaturesResponse), StatusCodes.Status200OK)]
         public IActionResult GetFeatures()
         {
-            return Ok(new
+            return Ok(new GetAvatarFeaturesResponse
             {
-                gravatarEnabled = Plugin.Instance != null && Plugin.Config.EnableGravatar
+                GravatarEnabled = Plugin.Instance != null && Plugin.Config.EnableGravatar,
+                ApiVersion = Plugin.ApiVersion,
+                Version = Plugin.Instance?.Version.ToString() ?? string.Empty
             });
         }
 
@@ -330,6 +343,13 @@ namespace Jellyfin.Plugin.GetAvatar.Controllers
         /// <param name="request">The request containing the email address.</param>
         /// <returns>Status of operation.</returns>
         [HttpPost("Gravatar")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status502BadGateway)]
         public async Task<IActionResult> ImportGravatar([FromBody] GravatarRequest request)
         {
             try
