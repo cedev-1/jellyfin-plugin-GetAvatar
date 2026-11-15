@@ -24,7 +24,7 @@ Routes marked **none** need no token.
 
 1. `GET /GetAvatar/Avatars`: `200` means the plugin is installed (the list can be empty). `404` means it is not.
 2. `GET /GetAvatar/Features`:
-   - `200` with `apiVersion`: compare `apiVersion` with the versions your client supports (see [Versioning policy](#versioning-policy-proposal)).
+   - `200` with `apiVersion`: compare `apiVersion` with the versions your client supports (see [Versioning policy](#versioning-policy)).
    - `200` without `apiVersion`: plugin 1.7.0.0 to 1.7.5.0. The routes on this page behave as in API version 1, but `Features` only returns `gravatarEnabled`.
    - `404`: plugin older than 1.7.0.0. `Avatars`, `Image` and `SetAvatar` are available, `Features` and `Gravatar` are not. These versions can differ from this page: `Category` exists since 1.6.1.0, the `userId` field of `SetAvatar` since 1.5.3.0, and a non-administrator who targets another user gets a server error instead of `403`.
 
@@ -166,7 +166,7 @@ Branch on the HTTP status code. Messages are short English texts meant for logs 
 
 Jellyfin lists these routes, under the `Avatar` tag, in its own API documentation: `/api-docs/swagger` (Swagger UI), `/api-docs/redoc`, and the OpenAPI document at `/api-docs/openapi.json`. `Features` has a typed schema (`GetAvatarFeaturesResponse`). The other routes list their status codes. Jellyfin does not load plugin XML documentation, so route descriptions are missing there. It also shows a lock on `Image/{avatarId}` although that route needs no token, and labels `400` responses as `ProblemDetails`, although the plugin's own `400` messages are JSON strings (see [Errors](#errors)). This page is the reference.
 
-## Versioning policy (proposal)
+## Versioning policy
 
 - `apiVersion` starts at `1` and covers the routes on this page.
 - It is incremented only for a breaking change to these routes: a route or field removed or renamed, a field type or casing changed, a request field made required, or a status code given another meaning.
